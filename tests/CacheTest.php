@@ -602,14 +602,19 @@ return [
                 exec('rm -rf ' . escapeshellarg("$dir/c"));
                 $c = new FileCache("$dir/c", 256 * 1000, $apcu);       // 1000 bytes a folder
                 $now = microtime(true);
+                $base = time() - 100;
                 foreach ($keys as $n => $k) {
                     truthy($c->put($k, 200, [], str_repeat('x', 300), 60, $now), 'written');
                     foreach ($files("$dir/c") as $f) {
                         touch($f, filemtime($f) ?: time());      // keep the older ones older
                     }
+                    // Written one second after the one before, all in the past: the answer being
+                    // written (its mtime now, when put() trims with APCu) is always the newest, as on
+                    // a real site -- not older than the ones before or as old as the first when a
+                    // second passes during the loop.
                     $file = "$dir/c/aa/" . substr(sha1($k), 2, 2) . '/' . sha1($k) . '.cache';
                     if (is_file($file)) {
-                        touch($file, time() + $n);
+                        touch($file, $base + $n);
                     }
                 }
                 if (!$apcu) {
