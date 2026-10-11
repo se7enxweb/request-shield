@@ -177,7 +177,9 @@ return [
             same(1, $st['rules']['site.rules:3']['count'] ?? 0, 'the rule in front of it is still read');
             $html = RulesPage::render(crawlerSettings("set log $dir/shield.log\ncrawlers ai-training block\n"));
             truthy(strpos($html, 'Known crawlers') !== false, 'a group');
-            truthy(strpos($html, 'collects for AI training: refused (403) — verified by its published address list (26 ranges') !== false, 'in words');
+            // As many ranges as the shipped list holds (bin/update-crawler-lists changes it, the words stay).
+            $ranges = count(json_decode((string) file_get_contents(dirname(__DIR__) . '/rules/crawlers/anthropic.json'), true)['prefixes'] ?? []);
+            truthy($ranges > 0 && strpos($html, "collects for AI training: refused (403) — verified by its published address list ($ranges ranges") !== false, "in words ($ranges ranges)");
             truthy(strpos($html, '2× only claimed in 24 h') !== false, 'how often someone only claimed to be it');
         } finally {
             exec('rm -rf ' . escapeshellarg($dir));

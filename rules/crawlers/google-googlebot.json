@@ -1,7 +1,7 @@
 {
     "source": "https://developers.google.com/static/search/apis/ipranges/googlebot.json",
-    "creationTime": "2026-09-29T14:46:51.000000",
-    "fetched": "2026-09-30",
+    "creationTime": "2026-10-09T14:46:27.000000",
+    "fetched": "2026-10-11",
     "prefixes": [
         "2001:4860:4801:10::/64",
         "2001:4860:4801:11::/64",
