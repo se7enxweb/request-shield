@@ -122,6 +122,46 @@ admin.example.org` block: the same rules (`EXP-AH-…`) for the whole host, and
 server name, never by the visitor's `Host` header. The frontend host keeps its
 rules unchanged: there, `/admin/content/view/…` is refused like any system URL.
 
+### The admin's background requests
+
+The admin loads parts of its pages with a script, in the background. Today
+that is the admin4 mega menu: opening "Setup" or "Users" fetches
+`/admin/user/megamenu/<tab>` and puts the answer into the menu. Tomorrow it is
+every ezjscore call, the log viewer's live tail, the layout editor's API and
+the autosave of a draft.
+
+Such a request cannot show the check page or run it. If the shield answered it
+with the page, the script would put a check page into the menu, or say "The
+Setup menu could not be loaded." In monitor mode every one of them is also a
+"would check" line in the log.
+
+So a check never answers a background request with the page:
+
+- **With a pass** (the editor passed the check when the admin page loaded),
+  the request goes through, as every request with a pass.
+- **Without one** (no check yet, or the pass ran out in the middle of a working
+  session), it gets the check as JSON: 429, `Content-Type: application/json`,
+  the task in the `Request-Shield-Challenge` header, no HTML. The page's
+  script sees that it got no fragment and can reload the page. The reload is a
+  navigation: it gets the check page, and the editor goes on with a new pass.
+
+The shield knows a background request by the browser's `Sec-Fetch-Dest: empty`
+and by `X-Requested-With: XMLHttpRequest`. Both main files also name the mega
+menu's path with `api-path`, for a client that sends neither:
+
+| Rule | What | Why |
+|---|---|---|
+| `EXP-ADMIN-BG` / `EXP-AH-BG` | `api-path /admin/user/megamenu/**` (on the admin host `/user/megamenu/**`) | The mega menu's panels are fragments for a script: a check for them comes as JSON, never as the page. |
+
+Its examples prove it: `expect GET /admin/user/megamenu/setup with pass
+answered`, and without a pass `json-check`, the check as JSON. Add the paths of
+your own background calls to the same line, `api-path` takes several.
+
+**Updating a site's rules:** with a shield from this version on, a background
+request is answered so without any change. Copy the `EXP-ADMIN-BG` line (or
+`EXP-AH-BG` in the admin's `site` block) from the example into your main file.
+`request-shield test <main file>` then shows the new examples passing.
+
 ## 5. Pace, bans and everything else
 
 | Rule | What | Why |

@@ -8,7 +8,7 @@
 # it with a Host header). Reasons: docs/use-cases/exponential.md.
 
 ids EXP
-version 2026-10-02.1
+version 2026-10-17.1
 
 include     exponential.rules                                  # the frontend: system URLs, forms, search, pace
 
@@ -22,8 +22,12 @@ site admin.example.org {
   expect GET /class/grouplist with pass               answered
   [EXP-AH-POST]   allow POST /**                              # editors save everywhere in the admin
   expect POST /class/edit/1 with pass               answered
+  [EXP-AH-BG]     api-path /user/megamenu/**                  # the admin's background fragments (the mega menu): the check as JSON, never the page
+  expect GET /user/megamenu/setup with pass           answered
+  expect GET /user/megamenu/setup header X-Requested-With:XMLHttpRequest   json-check by EXP-AH-CHECK   # no pass: JSON, not the HTML check page
   [EXP-AH-CHECK]  challenge /**                               # every editor: the browser check once per pass
   expect GET /dashboard                               check
+  expect GET /content/view/full/2 header Sec-Fetch-Dest:empty   json-check   # any fetch of the admin's: the check as JSON
   expect GET /user/login                              check by EXP-LOGIN
   [EXP-AH-AREA]   backend /**                                 # the editors' area: its forms counted apart in the statistics
   [EXP-AH-Q]      query * text                                # the admin's parameters: all known, free text scanned for attacks
