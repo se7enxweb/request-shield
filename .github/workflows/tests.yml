@@ -88,7 +88,16 @@ jobs:
         env:
           # With APCu every test must run; without it the APCu store test is skipped on purpose.
           TESTS_FAIL_ON_SKIP: ${{ matrix.apcu && '1' || '0' }}
-        run: php tests/run.php
+          # PHP 8.0.30 (end of life, no more fixes) crashes now and then in the servers the
+          # end-to-end tests start (exit 139, a segfault) or answers a demo request late,
+          # on GitHub's runners only: on PHP 8.0 a failed run is run once more and the leg
+          # fails only when the second run fails too. Every other version fails at once.
+          RETRY_ONCE: ${{ matrix.php == '8.0' && '1' || '0' }}
+        run: |
+          php tests/run.php && exit 0
+          [ "$RETRY_ONCE" = 1 ] || exit 1
+          echo "::warning::PHP ${{ matrix.php }}: the tests failed, running them once more (PHP 8.0's servers crash now and then on the runners)"
+          php tests/run.php
 
       # Against the built file (0031 E.3). Skips are expected: the demos show the
       # source tree's integration, ShippedTest needs the source tree's Shipped.
@@ -98,7 +107,13 @@ jobs:
         if: matrix.entry == 'single'
         env:
           REQUEST_SHIELD_ENTRY: ${{ github.workspace }}/build/out/request-shield.php
-        run: php tests/run.php
+          # As in the source-tree step: PHP 8.0 gets one more run after a failure.
+          RETRY_ONCE: ${{ matrix.php == '8.0' && '1' || '0' }}
+        run: |
+          php tests/run.php && exit 0
+          [ "$RETRY_ONCE" = 1 ] || exit 1
+          echo "::warning::PHP ${{ matrix.php }}, single file: the tests failed, running them once more (PHP 8.0's servers crash now and then on the runners)"
+          php tests/run.php
 
       - name: Cost of a passing request (smoke benchmark)
         if: matrix.entry == 'source'
