@@ -1694,7 +1694,8 @@ final class RuleFile
     }
 
     /**
-     * expect <METHOD> <address> <outcome> [by <ID>] [from <address>] [with pass] [times <n>]:
+     * expect <METHOD> <address> <outcome> [by <ID>] [from <address>] [with pass] [times <n>]
+     * (outcome: passes, uncached, answered, check -- the page or JSON --, json-check, a status):
      * an example of what the rules decide (proposal 0029). Checked here like any
      * rule; decided by request-shield test, never by a request.
      *
@@ -1702,7 +1703,7 @@ final class RuleFile
      */
     private function expect(array $args, string $at, string $file, ?string $text): void
     {
-        $usage = 'expect <METHOD> <address> passes|uncached|answered|check|<4xx> [by <ID>|built-in] [from <address>] [with pass] [times <n>] [ua "<User-Agent>"] [header <Name>:<value>]...';
+        $usage = 'expect <METHOD> <address> passes|uncached|answered|check|json-check|<4xx> [by <ID>|built-in] [from <address>] [with pass] [times <n>] [ua "<User-Agent>"] [header <Name>:<value>]...';
         if (count($args) < 3) {
             throw new RuleFileException("$at: $usage");
         }
@@ -1738,14 +1739,14 @@ final class RuleFile
                 $x['pass'] = true;
             } elseif ($a === 'times' && isset($args[0]) && ctype_digit($args[0]) && (int) $args[0] >= 1 && (int) $args[0] <= 10000) {
                 $x['times'] = (int) array_shift($args);
-            } elseif ($x['outcome'] === '' && (in_array($a, ['passes', 'uncached', 'answered', 'check'], true) || preg_match('/^4\d\d$/', $a))) {
+            } elseif ($x['outcome'] === '' && (in_array($a, ['passes', 'uncached', 'answered', 'check', 'json-check'], true) || preg_match('/^4\d\d$/', $a))) {
                 $x['outcome'] = $a;
             } else {
                 throw new RuleFileException("$at: expect: \"$a\" -- $usage");
             }
         }
         if ($x['outcome'] === '') {
-            throw new RuleFileException("$at: expect: what should happen? passes, uncached, answered (either), check or a status the shield refuses with (403, 404, 405, 429 …)");
+            throw new RuleFileException("$at: expect: what should happen? passes, uncached, answered (either), check (the page or JSON), json-check (JSON only: an API, a background request) or a status the shield refuses with (403, 404, 405, 429 …)");
         }
         if ($x['by'] !== null && ($x['outcome'] === 'passes' || $x['outcome'] === 'answered')) {
             throw new RuleFileException("$at: expect … {$x['outcome']} by {$x['by']} -- a request that passes is decided by no rule; leave by out");

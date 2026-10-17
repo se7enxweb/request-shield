@@ -210,6 +210,64 @@ return [
         same(Decision::ALLOW_UNCACHED, $shield->settle($shield->decide($postWithPass, 5.0), $postWithPass, 5.0)['decision']->action, 'a POST with the pass: through, uncached');
         exec('rm -rf ' . escapeshellarg($dir));
     },
+    'RSF03-02 a background request (fetch, XMLHttpRequest) never gets the check page: with a pass through, without one the check as JSON -- a navigation keeps the page' => function (): void {
+        $dir = sys_get_temp_dir() . '/rshield-bg-' . getmypid() . '-' . mt_rand();
+        $shield = new Shield(['storeDir' => $dir, 'budgets' => ['requests' => ['limit' => 1000, 'window' => 60]],
+            'challenge' => ['secret' => SECRET, 'searchEngines' => false, 'alwaysPaths' => ['#^/admin(/|$)#'], 'difficulty' => ['min' => 1000, 'max' => 1000]]], new MemoryStore());
+        // creq() with headers.
+        $with = static function (array $c, array $headers): Request {
+            [$uri, $cookies, $method] = $c + [1 => [], 2 => 'GET'];
+            $server = ['REQUEST_URI' => $uri, 'REQUEST_METHOD' => $method, 'HTTP_HOST' => 'example.org', 'REMOTE_ADDR' => '203.0.113.7', 'HTTP_USER_AGENT' => 'Mozilla/5.0 Test'];
+            if ($cookies !== []) {
+                $server['HTTP_COOKIE'] = implode('; ', array_map(static fn ($k, $v): string => "$k=$v", array_keys($cookies), $cookies));
+            }
+            foreach ($headers as $k => $v) {
+                $server['HTTP_' . strtoupper(str_replace('-', '_', $k))] = $v;
+            }
+            return Request::fromServer($server);
+        };
+        $run = static fn (Request $r, float $t): array => $shield->settle($shield->decide($r, $t), $r, $t);
+        $fetch = ['Sec-Fetch-Dest' => 'empty', 'Sec-Fetch-Mode' => 'cors'];
+        $xhr = ['X-Requested-With' => 'XMLHttpRequest'];
+
+        truthy(Shield::isBackground($with(['/admin/user/megamenu/setup'], $fetch)), 'fetch(): Sec-Fetch-Dest empty');
+        truthy(Shield::isBackground($with(['/admin/user/megamenu/setup'], $xhr)), 'a library\'s XMLHttpRequest: X-Requested-With');
+        truthy(Shield::isBackground($with(['/'], ['X-Requested-With' => 'xmlhttprequest'])), 'in any case');
+        foreach ([[], ['Sec-Fetch-Dest' => 'document', 'Sec-Fetch-Mode' => 'navigate'], ['Sec-Fetch-Dest' => 'iframe'], ['Sec-Fetch-Dest' => 'image'],
+            ['X-Requested-With' => 'com.example.app']] as $h) {
+            truthy(!Shield::isBackground($with(['/admin/dashboard'], $h)), 'no background request: ' . json_encode($h));
+        }
+
+        // Without a pass: the task as JSON (Responder::api), no page -- the script can tell it from its fragment.
+        foreach ([$fetch, $xhr] as $h) {
+            $r = $run($with(['/admin/user/megamenu/setup'], $h), 1.0);
+            same(Decision::CHALLENGE, $r['decision']->action, 'no pass: not through ' . json_encode($h));
+            same(null, $r['page'], 'no HTML check page ' . json_encode($h));
+            truthy(is_array($r['json']) && isset($r['json']['challenge'], $r['json']['signature']), 'the check as JSON ' . json_encode($h));
+        }
+        $post = $run($with(['/admin/content/autosave', [], 'POST'], $fetch), 1.0);
+        same([null, true], [$post['page'], is_array($post['json'])], 'a background POST: JSON too, no form to send again');
+
+        // A navigation is unchanged: the page.
+        $nav = $run($with(['/admin/dashboard'], ['Sec-Fetch-Dest' => 'document', 'Sec-Fetch-Mode' => 'navigate']), 1.0);
+        same(Decision::CHALLENGE, $nav['decision']->action);
+        truthy(is_string($nav['page']) && strpos($nav['page'], 'var RS=') !== false && $nav['json'] === null, 'a navigation: the check page, as before');
+
+        // With a pass: the fragment, as any request with a pass.
+        preg_match('/var RS=(\{.*?\});\(function/s', (string) $nav['page'], $m);
+        $solved = creq('/admin/dashboard', ['rss' => solveInPhp(json_decode($m[1], true)['c'])]);
+        $pass = (string) cookieValue($run($solved, 2.0)['cookies'], 'rsp');
+        foreach ([$fetch, $xhr] as $h) {
+            $r = $run($with(['/admin/user/megamenu/setup', ['rsp' => $pass]], $h), 3.0);
+            same(Decision::ALLOW, $r['decision']->action, 'with a pass: through ' . json_encode($h));
+        }
+
+        // The JSON check is what the shield sends: 429, Request-Shield-Challenge, no page.
+        $lines = \CjwNetwork\RequestShield\Responder::apiHeaderLines(Decision::challenge('always'), $post['json']);
+        same('Content-Type: application/json; charset=utf-8', $lines[0]);
+        truthy(strncmp($lines[2], 'Request-Shield-Challenge: ', 26) === 0, 'the task in a header: ' . $lines[2]);
+        exec('rm -rf ' . escapeshellarg($dir));
+    },
     'RSF03-02 alwaysMethods: challenge POST ** checks every form sent, not the pages that show them' => function (): void {
         $dir = sys_get_temp_dir() . '/rshield-always-m-' . getmypid() . '-' . mt_rand();
         $shield = new Shield(['storeDir' => $dir, 'budgets' => ['requests' => ['limit' => 1000, 'window' => 60]],
