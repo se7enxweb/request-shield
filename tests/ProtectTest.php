@@ -131,6 +131,40 @@ return [
             same(429, $get('GET', '/page', $ua + ['Cookie' => $rs['cookie'] . '=' . $payload])['status'], 'the same solution again: a new challenge');
         });
     },
+    'RSF03-02 protect(): a background request gets the check as JSON, never the page; with a pass the application answers it; a navigation keeps the page' => function (): void {
+        if (!function_exists('proc_open')) {
+            skip('no proc_open');
+        }
+        withServer([
+            'challenge' => ['secret' => str_repeat('e2e-secret', 5), 'searchEngines' => false, 'alwaysPaths' => ['#^/admin(/|$)#'], 'difficulty' => ['min' => 1000, 'max' => 1000]],
+            'exempt' => ['ips' => []],
+        ], function (callable $get): void {
+            $ua = ['User-Agent' => 'Mozilla/5.0 e2e'];
+            foreach ([['Sec-Fetch-Dest' => 'empty', 'Sec-Fetch-Mode' => 'cors'], ['X-Requested-With' => 'XMLHttpRequest']] as $h) {
+                $r = $get('GET', '/admin/user/megamenu/setup', $ua + $h);
+                same(429, $r['status'], 'no pass: not through ' . json_encode($h));
+                truthy(stripos($r['headers'], 'Content-Type: application/json') !== false && stripos($r['headers'], 'Request-Shield-Challenge: ') !== false, 'JSON, the task in a header: ' . $r['headers']);
+                truthy(stripos($r['body'], '<html') === false && stripos($r['body'], 'var RS=') === false, 'no check page in the body');
+                same('challenge', $r['json']['error'] ?? null, 'the body says what it is');
+            }
+            $nav = $get('GET', '/admin/dashboard', $ua + ['Sec-Fetch-Dest' => 'document', 'Sec-Fetch-Mode' => 'navigate']);
+            same(429, $nav['status']);
+            truthy(preg_match('/var RS=(\{.*?\});\(function/s', $nav['body'], $m) === 1 && stripos($nav['headers'], 'Content-Type: text/html') !== false, 'a navigation: the check page, as before');
+            $rs = json_decode($m[1], true);
+            $c = $rs['c'];
+            $payload = null;
+            for ($n = 0; $n <= $c['maxnumber'] && $payload === null; $n++) {
+                if (hash('sha256', $c['salt'] . $n) === $c['challenge']) {
+                    $payload = rtrim(strtr(base64_encode((string) json_encode(['algorithm' => $c['algorithm'], 'challenge' => $c['challenge'], 'number' => $n, 'salt' => $c['salt'], 'signature' => $c['signature'], 'took' => 1])), '+/', '-_'), '=');
+                }
+            }
+            $pass = $get('GET', '/admin/dashboard', $ua + ['Cookie' => $rs['cookie'] . '=' . $payload])['cookies']['rsp'] ?? '';
+            truthy($pass !== '', 'the check solved: a pass');
+            $r = $get('GET', '/admin/user/megamenu/setup', $ua + ['Sec-Fetch-Dest' => 'empty', 'Sec-Fetch-Mode' => 'cors', 'Cookie' => 'rsp=' . $pass]);
+            same(200, $r['status'], 'with the pass: the fragment');
+            same('allow', $r['json']['shield'] ?? null, 'answered by the application');
+        });
+    },
     'RSF02-06 protect(): content rules refuse an attack pattern before the application runs' => function (): void {
         if (!function_exists('proc_open')) {
             skip('no proc_open');

@@ -34,6 +34,18 @@ function examplesOf(string $text, bool $asWritten = false, ?string $only = null,
 }
 
 return [
+    'RSF05-04 json-check: the check as JSON only (an api-path, a background request); check takes the page or JSON, json-check never the page' => function (): void {
+        $run = examplesOf("[S-API] api-path /api/**\nexpect GET /api/x with pass answered\n[S-CHK] challenge /api/** /admin/**\n"
+            . "expect GET /api/x json-check\nexpect GET /api/x check\nexpect GET /admin/menu header Sec-Fetch-Dest:empty json-check\n"
+            . "expect GET /admin/menu header X-Requested-With:XMLHttpRequest json-check\nexpect GET /admin/menu check\nexpect GET /admin/menu json-check\n");
+        same(['pass site.rules:3', 'pass site.rules:5', 'pass site.rules:6', 'pass site.rules:7', 'pass site.rules:8', 'pass site.rules:9',
+            'fail site.rules:10: expected json-check by S-CHK, got check by S-CHK'], $run['lines']);
+        $at = array_column(array_map(static fn (array $r): array => ['at' => $r['example']['at'], 'r' => $r], $run['results']), 'r', 'at');
+        same('json-check', $at['site.rules:5']['got']);
+        truthy(in_array('Content-Type: application/json; charset=utf-8', $at['site.rules:5']['headers'], true), 'its headers: JSON -- ' . implode(' | ', $at['site.rules:5']['headers']));
+        same('check', $at['site.rules:9']['got'], 'a navigation: the page');
+        truthy(in_array('Content-Type: text/html; charset=utf-8', $at['site.rules:9']['headers'], true), 'its headers: the page');
+    },
     'RSF05-04 an example of a feed whose list is not fetched yet is skipped, not failed (0031 F.6)' => function (): void {
         $run = examplesOf("[S-F] feed spamhaus-drop deny\nexpect GET / from 203.0.113.5 403 by S-F\n");
         same(1, count(array_filter($run['lines'], static fn (string $l): bool => strncmp($l, 'skip site.rules:3', 17) === 0)), 'skipped: ' . implode(' | ', $run['lines']));

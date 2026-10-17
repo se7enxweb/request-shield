@@ -43,6 +43,15 @@ it expires (the hard `limit` still applies).
   nothing typed is lost. Forms with files, or larger than 256 KB, cannot be
   carried: the page asks to send them again (the check inside the form avoids
   that). APIs (JSON, `api-path`) get the task as a header.
+- **Background requests never get the page:** a page's script that loads
+  something with `fetch()` or `XMLHttpRequest` cannot show the check page or
+  run it. The browser marks such a request (`Sec-Fetch-Dest: empty`), and
+  libraries do (`X-Requested-With: XMLHttpRequest`). Without a pass it gets
+  the check as an API does: 429, JSON, the task in `Request-Shield-Challenge`,
+  no HTML. The script can tell that from the fragment it asked for, and reload
+  the page, which runs the check. With a pass it goes through as before.
+  A navigation (`Sec-Fetch-Dest: document`) keeps the page. A client that only
+  sends the headers gets the JSON task: no way past the check.
 - **Known crawlers** — search engines and AI crawlers that behave — are
   never given the check: verified by their operators' published address
   lists or by DNS, never by the name they send

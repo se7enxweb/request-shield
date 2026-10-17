@@ -50,7 +50,8 @@ After the address, the outcome and the options may come in any order.
 | `passes` | answered, and a cache may keep it |
 | `uncached` | answered, but not kept (a query a cache must not keep, say) |
 | `answered` | either of the two: the site answers it. For near misses that must not be refused, whatever the site's cache rules say |
-| `check` | the browser check |
+| `check` | the browser check: the page, or the task as JSON for an API or a background request |
+| `json-check` | the check as JSON only (429, `Request-Shield-Challenge`, no page): an `api-path`, a request asking for JSON, or a page's script in the background (`Sec-Fetch-Dest: empty`, `X-Requested-With: XMLHttpRequest`) |
 | `403`, `404`, `405`, `429` … | refused with that status |
 | `by <ID>` | the rule that must decide (`by built-in`: a fixed check without an ID, such as a path out of the site's folder). **Without it, the rule the line follows** (the last rule with an ID above it in the same file); for `uncached`, nothing is checked unless `by` is written; `passes` and `answered` take no `by` (no rule decides a request that passes) |
 | `from <address>` | the visitor's address; default `198.51.100.7`, a documentation range. For `restrict`, `exempt`, `deny`, the lists |

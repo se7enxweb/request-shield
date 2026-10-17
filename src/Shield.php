@@ -1219,11 +1219,15 @@ final class Shield
     }
 
     /**
-     * Whether a request is an API's: it asks for or sends JSON, or its path is
-     * one the site named (api-path). A check is then a header, not a page.
+     * Whether a request is an API's: it asks for or sends JSON, a page's
+     * script sent it in the background (isBackground()), or its path is one
+     * the site named (api-path). A check is then a header, not a page.
      */
     public function isApi(Request $request): bool
     {
+        if (self::isBackground($request)) {
+            return true;
+        }
         $sent = $this->request === $request ? ($_SERVER['CONTENT_TYPE'] ?? '') : '';
         foreach ([(string) $request->header('accept'), is_string($sent) ? $sent : ''] as $type) {
             if ($type !== '' && preg_match('#application/(?:[\w.+-]+\+)?json#i', $type) === 1 && stripos($type, 'text/html') === false) {
@@ -1236,6 +1240,22 @@ final class Shield
             }
         }
         return false;
+    }
+
+    /**
+     * Whether a page's script sent the request in the background -- fetch() or
+     * XMLHttpRequest, not the browser for a page, a frame or an image: the
+     * browser says so (Sec-Fetch-Dest: empty), and libraries do
+     * (X-Requested-With: XMLHttpRequest) where an older browser does not.
+     * Such a request cannot show the check page or run it: it gets the check
+     * as JSON (429, Request-Shield-Challenge) like an API, so the script can
+     * tell a check from the content it asked for. A client that sends the
+     * headers without being one gets that answer too -- no way past the check.
+     */
+    public static function isBackground(Request $request): bool
+    {
+        return strcasecmp((string) $request->header('sec-fetch-dest'), 'empty') === 0
+            || strcasecmp((string) $request->header('x-requested-with'), 'XMLHttpRequest') === 0;
     }
 
     /**

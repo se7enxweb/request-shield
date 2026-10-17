@@ -36,6 +36,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   50 -> 36 µs; short values are matched as before (one call).
 
 ### Fixed
+- **A background request never gets the check page** (RSF03-02): a request
+  a page's script sends with `fetch()` or `XMLHttpRequest`
+  (`Sec-Fetch-Dest: empty`, `X-Requested-With: XMLHttpRequest`) is answered
+  as an API is -- with a pass it goes through, without one it gets the check
+  as JSON (429, `Request-Shield-Challenge`, no HTML) instead of the HTML
+  check page, which the script took for its content (Exponential's admin4
+  mega menu: "The Setup menu could not be loaded"). A refusal of such a
+  request is JSON too. Navigations, frames and images are unchanged.
+  `expect … json-check` says an example gets the check as JSON and never the
+  page; `check` takes either. `Responder::apiHeaderLines()` gives the JSON
+  check's header lines, as `headerLines()` does the page's. The Exponential
+  examples (version 2026-10-17.1) name the admin's mega menu with `api-path`
+  (`EXP-ADMIN-BG`, `EXP-AH-BG`), and `docs/use-cases/exponential.md` says
+  how the admin's background requests are answered.
 - **An address range with a prefix longer than its address** (`1.2.3.4/99`,
   `2001:db8::/129`) is refused naming its line; before it was taken and
   matched nobody.
