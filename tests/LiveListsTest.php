@@ -135,7 +135,11 @@ return [
         $dir = liveDir();
         try {
             $s = liveSettings($dir, "trust 10.1.0.0/16\n");
-            $now = 1790800000;
+            // The lists are written with this clock, but Settings::load() below judges them by the real
+            // one (and the rule file is touched with it), so a fixed date expires the 30-day entry a month
+            // later. 26:40 past the previous hour is never ahead of the real clock and keeps the token's
+            // hour boundaries where a fixed time had them.
+            $now = intdiv(time(), 3600) * 3600 - 2000;
             $tok = \CjwNetwork\RequestShield\Api\ListsChanges::token($s, '192.0.2.10', $now);
             same([true, true, false, false, false], [\CjwNetwork\RequestShield\Api\ListsChanges::verify($s, '192.0.2.10', $tok, $now), \CjwNetwork\RequestShield\Api\ListsChanges::verify($s, '192.0.2.10', $tok, $now + 3600),
                 \CjwNetwork\RequestShield\Api\ListsChanges::verify($s, '192.0.2.10', $tok, $now + 7200), \CjwNetwork\RequestShield\Api\ListsChanges::verify($s, '192.0.2.11', $tok, $now), \CjwNetwork\RequestShield\Api\ListsChanges::verify($s, '192.0.2.10', '', $now)],
