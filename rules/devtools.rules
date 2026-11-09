@@ -1,0 +1,55 @@
+# Built into cjw-network/request-shield, on request: "include @devtools"
+# (or "block @devtools") in the site's rules.
+#
+# Addresses of other software's tools: build files, settings files, debug and
+# status pages, API consoles, a development server's own addresses. A scanner
+# asks for them to learn what a site runs on, or to read what a debug page
+# gives away. Not read by default, because some sites serve one of them
+# through PHP: a Symfony site in development has /_profiler, an API its
+# /swagger-ui. Such a site takes that rule back ("unblock [DEV-APIDOCS]") or
+# opens it for the office ("unblock [DEV-DEBUG@1] at /_profiler/** for 192.0.2.0/24").
+#
+# From what scanners asked 38 websites for in 30 days; none of the names is
+# the address of a page there.
+
+ids DEV required
+version 2026.11.1
+
+[DEV-BUILD@1]     block regex /(?:package(?:-lock)?\.json|yarn\.lock|pnpm-lock\.yaml|dockerfile|makefile|gemfile(?:\.lock)?|requirements\.txt|go\.(?:mod|sum)|cargo\.(?:toml|lock)|phpunit\.xml(?:\.dist)?|tsconfig\.json|(?:webpack|vite|next|nuxt)\.config\.[cm]?[jt]s)$   # build files: package.json, yarn.lock, Dockerfile, Makefile, requirements.txt, phpunit.xml, webpack.config.js
+expect GET /package.json              404
+expect GET /app/yarn.lock             404
+expect GET /Dockerfile                404   # in any case
+expect GET /vite.config.ts            404
+expect GET /package-tours            answered   # a near miss: no file
+expect GET /blog/dockerfile-tips     answered   # a near miss: the word in a page's name
+expect GET /manifest.json            answered   # a near miss: a web app's manifest
+[DEV-APPCONFIG@1] block regex /(?:php\.ini|appsettings(?:\.[a-z]+)?\.json|application(?:-[a-z]+)?\.(?:ya?ml|properties)|(?:database|parameters|settings\.local)\.ya?ml|(?:local_)?settings\.py)$   # other software's settings files: php.ini, appsettings.json, application.yml, database.yml, parameters.yml, settings.py
+expect GET /php.ini                   404
+expect GET /appsettings.Production.json  404
+expect GET /config/database.yml       404
+expect GET /app/settings.py           404
+expect GET /settings                 answered   # a near miss: a page
+expect GET /docs/application.html    answered   # a near miss: another extension
+[DEV-DEBUG@1]     block regex ^/(?:_profiler|_wdt|telescope|horizon|_ignition|_debugbar|debug/(?:vars|pprof|default)|actuator|jolokia|h2-console|server-status|server-info|elmah\.axd|trace\.axd|jmx-console|web-console|manager/html)(?:/|$)   # debug and status pages: Symfony's profiler, Laravel's Telescope and Horizon, Spring's actuator, server-status
+expect GET /_profiler/phpinfo         404
+expect GET /actuator/env              404
+expect GET /telescope/requests        404
+expect GET /server-status             404
+expect GET /debug/pprof/heap          404
+expect GET /actuators-and-valves     answered   # a near miss: a word that starts like one
+expect GET /shop/telescope           answered   # a near miss: not at the root -- a shop sells telescopes
+expect GET /horizon-2030             answered
+[DEV-APIDOCS@1]   block regex ^/(?:swagger(?:-ui)?(?:\.html)?|swagger\.(?:json|ya?ml)|openapi\.(?:json|ya?ml)|(?:v[1-3]/)?api-docs|graphiql)(?:/|$)   # API consoles and descriptions: swagger-ui, swagger.json, openapi.json, api-docs, graphiql
+expect GET /swagger-ui.html           404
+expect GET /swagger/index.html        404
+expect GET /openapi.json              404
+expect GET /v2/api-docs               404
+expect GET /api-documentation        answered   # a near miss
+expect GET /docs/openapi.json        answered   # a near miss: not at the root
+[DEV-SOURCE@1]    block regex \.(?:js|css)\.map$|^/@(?:fs|vite|id|react-refresh)(?:/|$)|^/(?:__vite[a-z_]*|__webpack_hmr|sockjs-node|webpack-dev-server)(?:/|$)   # source maps and a development server's own addresses: main.js.map, /@fs/, /@vite/client, /__webpack_hmr
+expect GET /assets/main.js.map        404
+expect GET /@fs/etc/passwd            404
+expect GET /@vite/client              404
+expect GET /sitemap                  answered   # a near miss
+expect GET /maps/berlin.map.html     answered   # a near miss: .map, then more
+expect GET /@alice                   answered   # a near miss: a profile address

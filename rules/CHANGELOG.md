@@ -2,7 +2,7 @@
 
 The rule files in this directory are read by every site (`scanners.rules`) or
 on request (`wordpress.rules`: `include @wordpress`; `attacks.rules`:
-`include @attacks`). Each file has a
+`include @attacks`; `devtools.rules`: `include @devtools`). Each file has a
 `version`; each rule a revision (`[SCAN-BACKUP@1]`), raised when the rule
 changes what it matches. A site that takes back, replaces or opens a rule and
 names the revision it reviewed (`unblock [SCAN-BACKUP@1] at /downloads/**`) is
@@ -20,6 +20,17 @@ revision here is newer — the rule itself applies at once.
 
 Both from what scanners asked 38 websites for in 30 days: every name in
 them was asked for, none is an address of a page.
+
+`devtools.rules` (`include @devtools`), a new set, from the same 30 days --
+for sites that serve none of these through PHP:
+
+| Rule | Revision | Matches |
+|---|---|---|
+| `DEV-BUILD` | 1 (new) | build files in any folder: `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `Dockerfile`, `Makefile`, `Gemfile`, `Gemfile.lock`, `requirements.txt`, `go.mod`, `go.sum`, `Cargo.toml`, `Cargo.lock`, `phpunit.xml`, `phpunit.xml.dist`, `tsconfig.json`, `webpack.config.js` (also `vite`, `next`, `nuxt`; `.js`, `.cjs`, `.mjs`, `.ts`). `/manifest.json`, `/package-tours` and `/blog/dockerfile-tips` pass. |
+| `DEV-APPCONFIG` | 1 (new) | other software's settings files in any folder: `php.ini`, `appsettings.json` (also `appsettings.Production.json`), `application.yml`, `application.properties` (also `application-prod.yml`), `database.yml`, `parameters.yml`, `settings.local.yml`, `settings.py`, `local_settings.py`. `/settings` and `/docs/application.html` pass. |
+| `DEV-DEBUG` | 1 (new) | debug and status pages, at the root only: `/_profiler`, `/_wdt`, `/telescope`, `/horizon`, `/_ignition`, `/_debugbar`, `/debug/vars`, `/debug/pprof`, `/debug/default`, `/actuator`, `/jolokia`, `/h2-console`, `/server-status`, `/server-info`, `/elmah.axd`, `/trace.axd`, `/jmx-console`, `/web-console`, `/manager/html`, and what is below them. `/shop/telescope`, `/horizon-2030` and `/actuators-and-valves` pass. (`/_ignition/execute-solution` is `ATK-EXPLOIT`'s too.) |
+| `DEV-APIDOCS` | 1 (new) | API consoles and descriptions, at the root only: `/swagger`, `/swagger-ui`, `/swagger-ui.html`, `/swagger.json`, `/swagger.yaml`, `/openapi.json`, `/openapi.yaml`, `/api-docs`, `/v1/api-docs` to `/v3/api-docs`, `/graphiql`. `/api-documentation` and `/docs/openapi.json` pass. |
+| `DEV-SOURCE` | 1 (new) | source maps (`.js.map`, `.css.map`) and a development server's own addresses: `/@fs/…`, `/@vite/…`, `/@id/…`, `/@react-refresh`, `/__vite_ping`, `/__webpack_hmr`, `/sockjs-node`, `/webpack-dev-server`. `/sitemap`, `/maps/berlin.map.html` and `/@alice` pass. |
 
 ## 2026.10.2
 

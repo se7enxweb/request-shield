@@ -19,7 +19,7 @@
 - [The parts and their switches](docs/explained/parts.md) · [the browser check](docs/explained/browser-check.md)
 - Features, one page each: `docs/features/*.md` (index in [docs/README.md](docs/README.md))
 - Rule files: [docs/features/RSF05-01-rule-files.md](docs/features/RSF05-01-rule-files.md) · examples and `request-shield test`: [docs/features/RSF05-04-rule-examples.md](docs/features/RSF05-04-rule-examples.md)
-- Shipped rule sets: `rules/scanners.rules`, `rules/attacks.rules`, `rules/tracking.rules`, `rules/crawlers.rules`, `rules/wordpress.rules` (for sites that are NOT WordPress; to be renamed `@not-wordpress`)
+- Shipped rule sets: `rules/scanners.rules`, `rules/attacks.rules`, `rules/tracking.rules`, `rules/crawlers.rules`, `rules/wordpress.rules` (for sites that are NOT WordPress; to be renamed `@not-wordpress`), `rules/devtools.rules` (build files, debug pages, API consoles; for sites that serve none through PHP)
 - The plan for v1.0: [proposal 0031](docs/proposals/0031-robust-core-plugins.md), progress in [0031-steps.md](docs/proposals/0031-steps.md)
 - [CHANGELOG.md](CHANGELOG.md) · [SECURITY.md](SECURITY.md)
 

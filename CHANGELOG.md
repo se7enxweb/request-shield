@@ -136,6 +136,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `unblock [SCAN-KEYS] at /downloads/**` opens one where a site hands such a
   file out. With `include @attacks`, `/.aws/…` and `/.ssh/…` are refused by
   `SCAN-SECRETS` now instead of `ATK-EXPLOIT` (404 either way).
+- **A new shipped rule set, `@devtools`** (`rules/devtools.rules`,
+  `2026.11.1`, RSF02-02), on request: `include @devtools` (or `block
+  @devtools`). Other software's tools, answered 404 before the site starts
+  -- build files (`DEV-BUILD`: `package.json`, `Dockerfile`, `Makefile`),
+  settings files (`DEV-APPCONFIG`: `php.ini`, `application.yml`,
+  `database.yml`), debug and status pages (`DEV-DEBUG`: `/_profiler`,
+  `/telescope`, `/actuator`, `/server-status`), API consoles (`DEV-APIDOCS`:
+  `/swagger-ui`, `/openapi.json`, `/api-docs`) and source maps with a
+  development server's own addresses (`DEV-SOURCE`: `main.js.map`, `/@fs/`).
+  Not read by default, because some sites serve one of them through PHP (a
+  Symfony site in development, an API with its console); such a site takes
+  that rule back: `unblock [DEV-APIDOCS@1]`. From what scanners asked 38
+  websites for in 30 days. Nothing changes for a site that does not include
+  it.
 - **`examples/showcase/deploy.sh`: the showcase on a server in one
   command** -- from a clone of the repository, after `git pull`: builds
   the standalone copy, takes the running copy's `var/` over (secret,

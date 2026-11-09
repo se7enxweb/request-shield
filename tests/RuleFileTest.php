@@ -462,6 +462,37 @@ return [
             exec('rm -rf ' . escapeshellarg($dir));
         }
     },
+    'RSF02-02 @devtools: on request only -- build files, settings files, debug pages, API consoles, source maps; one rule taken back or opened' => function (): void {
+        $cases = ['/package.json' => 'DEV-BUILD', '/app/Dockerfile' => 'DEV-BUILD', '/vite.config.ts' => 'DEV-BUILD',
+            '/php.ini' => 'DEV-APPCONFIG', '/appsettings.Production.json' => 'DEV-APPCONFIG', '/config/database.yml' => 'DEV-APPCONFIG',
+            '/_profiler/phpinfo' => 'DEV-DEBUG', '/actuator/env' => 'DEV-DEBUG', '/telescope/requests' => 'DEV-DEBUG', '/server-status' => 'DEV-DEBUG',
+            '/swagger-ui.html' => 'DEV-APIDOCS', '/v2/api-docs' => 'DEV-APIDOCS', '/openapi.json' => 'DEV-APIDOCS',
+            '/assets/main.js.map' => 'DEV-SOURCE', '/@fs/etc/passwd' => 'DEV-SOURCE', '/__vite_ping' => 'DEV-SOURCE'];
+        $plain = rulesFrom('');
+        foreach (array_keys($cases) as $path) {
+            same('allow', decideFor($plain, $path), "not read by default: $path");
+        }
+        $s = rulesFrom("include @devtools\n");
+        same(count(\CjwNetwork\RequestShield\Config::scannerPaths()) + 5, count($s->blockedPaths), 'five rules on top of the scanner rules');
+        same(count($s->blockedPaths), count(rulesFrom("block @devtools\n")->blockedPaths), 'block @devtools = include @devtools');
+        $shield = new Shield($s, new MemoryStore());
+        foreach ($cases as $path => $id) {
+            $r = Request::fromServer(['REQUEST_URI' => $path, 'REMOTE_ADDR' => '198.51.100.7', 'HTTP_HOST' => 'www.example.org']);
+            $d = $shield->decide($r, 1000.0);
+            same(['reject', 404, 'blocked path', $id], [$d->action, $d->status, $d->reason, $shield->explain($d, $r)], "$path: 404 by $id");
+        }
+        foreach (['/package-tours', '/manifest.json', '/blog/dockerfile-tips', '/settings', '/docs/application.html', '/shop/telescope', '/horizon-2030',
+            '/actuators-and-valves', '/api-documentation', '/docs/openapi.json', '/sitemap', '/maps/berlin.map.html', '/@alice', '/'] as $path) {
+            same('allow', decideFor($s, $path), "a near miss passes: $path");
+        }
+        same('DEV', array_key_last(array_filter($s->origins['versions'], static fn (string $v): bool => $v === '2026.11.1')), 'the set has a version');
+        // A site with an API console takes that one rule back; a team opens the debug pages for its office.
+        $api = rulesFrom("include @devtools\nunblock [DEV-APIDOCS@1]\n[SITE-DBG] unblock [DEV-DEBUG@1] at /_profiler/** /_wdt/** for 192.0.2.0/24\n");
+        same('allow', decideFor($api, '/swagger-ui.html'), 'taken back');
+        same('reject blocked path', decideFor($api, '/package.json'), 'the others stay');
+        same('allow', decideFor($api, '/_profiler/latest', ['REMOTE_ADDR' => '192.0.2.5']), 'the profiler, from the office');
+        same('reject blocked path', decideFor($api, '/_profiler/latest'), 'from anyone else: refused');
+    },
     'RSF02-02 the built-in rules: shipped as rule files, the same as the PHP defaults' => function (): void {
         $mirror = \CjwNetwork\RequestShield\Config::builtIns();
         $defaults = rulesFrom('');
