@@ -36,6 +36,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   50 -> 36 µs; short values are matched as before (one call).
 
 ### Fixed
+- **A line was lost when its folder had been removed while PHP still
+  remembered it** (RSF05-02): `Files::append()` asked `is_dir()` whether a
+  failed write's folder was gone, and PHP's stat cache answered from before
+  logrotate or a clean-up removed it -- nothing was made anew, the log line or
+  the statistics' count was dropped without a word (seen on PHP 8.1). The
+  folder is asked of the disk now, with and without threads.
+- **A wrong path pattern in the PHP settings was named by one letter of its
+  key** (`'a' must be a path pattern` instead of `'backend[1]'`; past the
+  key's length a warning and an empty name): `backend`, `queryDrop` and
+  `postOrigin.except` name the entry by its place again.
 - **An address range with a prefix longer than its address** (`1.2.3.4/99`,
   `2001:db8::/129`) is refused naming its line; before it was taken and
   matched nobody.
