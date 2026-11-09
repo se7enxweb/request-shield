@@ -97,6 +97,18 @@ final class Files
     }
 
     /**
+     * Whether a folder is gone, asked of the disk: a write into it failed,
+     * and PHP's stat cache may still remember it from before logrotate or a
+     * clean-up removed it -- is_dir() would say it is there, and nothing
+     * would be made anew.
+     */
+    private static function lost(string $dir): bool
+    {
+        clearstatcache(true, $dir);
+        return !is_dir($dir);
+    }
+
+    /**
      * A file written whole: a temporary file made exclusive in file-mode
      * (create()), then the data, then renamed -- a reader never sees half of it, and
      * the data is never in a file of another mode. $keep: the read and write
@@ -168,13 +180,13 @@ final class Files
             } finally {
                 umask($umask);
             }
-            if ($ok === false && !is_dir(dirname($file)) && self::dir(dirname($file))) {
+            if ($ok === false && self::lost(dirname($file)) && self::dir(dirname($file))) {
                 return self::append($file, $data, $lock);
             }
             return $ok !== false;
         }
         $h = @fopen($file, 'ab');
-        if ($h === false && self::dir(dirname($file))) {
+        if ($h === false && self::lost(dirname($file)) && self::dir(dirname($file))) {
             $h = @fopen($file, 'ab');
         }
         if ($h === false) {

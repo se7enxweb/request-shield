@@ -148,6 +148,26 @@ return [
             exec('rm -rf ' . escapeshellarg($dir));
         }
     },
+    'RSF05-02 a folder removed while PHP still remembers it (stat cache): append() makes it anew, with and without threads' => function (): void {
+        $dir = filesDir();
+        $threads = new ReflectionProperty(Files::class, 'threads');
+        $threads->setAccessible(true);                                    // PHP 8.0
+        try {
+            foreach (['without threads' => false, 'with threads' => true] as $how => $zts) {
+                $threads->setValue(null, $zts);
+                $sub = "$dir/" . ($zts ? 'zts' : 'nts');
+                truthy(Files::append("$sub/x/log", "1\n"), "$how: written");
+                truthy(is_dir("$sub/x"), "$how: PHP has looked at the folder");
+                exec('rm -rf ' . escapeshellarg($sub));                  // logrotate, a clean-up -- PHP is not told
+                truthy(Files::append("$sub/x/log", "2\n"), "$how: its folder removed, PHP's stat cache still has it: made anew");
+                clearstatcache();
+                same(["2\n", '0600', '0700'], [@file_get_contents("$sub/x/log"), modeOf("$sub/x/log"), modeOf("$sub/x")], "$how: the line, in file-mode, in a folder in dir-mode");
+            }
+        } finally {
+            $threads->setValue(null, null);
+            exec('rm -rf ' . escapeshellarg($dir));
+        }
+    },
     'RSF05-02 what the shield writes gets the modes: the log, a mark in store-dir, a list by the command line (set file-mode, set dir-mode)' => function (): void {
         $dir = filesDir();
         try {
