@@ -218,7 +218,7 @@ return [
             exec('rm -rf ' . escapeshellarg($dir));
         }
     },
-    'RSF01-02 bans: a refusal the client did not choose is refused but never counted -- a page\'s own request, a visitor sent by another website, an address below /.well-known/' => function (): void {
+    'RSF01-02 bans: a refusal the client did not choose -- a page\'s own request, a visitor sent by another website -- is counted against ten times the number; below /.well-known/ never' => function (): void {
         $dir = listsDir();
         try {
             $s = listsSettings($dir, "include @attacks\n[SITE-SCAN] ban after 3 refusals in 5m for 10m\n");
@@ -236,7 +236,7 @@ return [
             };
             // <img src="https://www.example.org/.env"> on another website: the visitor's browser asks, the visitor did not.
             same(['reject', 404, false], $five('/.env', '203.0.113.21', ['HTTP_SEC_FETCH_MODE' => 'no-cors', 'HTTP_SEC_FETCH_SITE' => 'cross-site', 'HTTP_SEC_FETCH_DEST' => 'image']),
-                'an image a foreign page embeds: refused, the visitor not banned');
+                'an image a foreign page embeds: refused, the visitor not banned for five');
             same(['reject', 404, false], $five('/old/backup.zip', '203.0.113.22', ['HTTP_SEC_FETCH_MODE' => 'no-cors', 'HTTP_SEC_FETCH_SITE' => 'same-origin']),
                 'a stale image link on the site\'s own page: not the visitor\'s doing either');
             same(['reject', 403, false], $five('/?q=%3Cscript%3Ealert(1)%3C/script%3E', '203.0.113.23', ['HTTP_SEC_FETCH_MODE' => 'cors', 'HTTP_SEC_FETCH_SITE' => 'cross-site']),
@@ -246,7 +246,7 @@ return [
             same(['reject', 404, false], $five('/.git/config', '203.0.113.25', ['HTTP_SEC_FETCH_MODE' => 'Navigate', 'HTTP_SEC_FETCH_SITE' => ' Cross-Site ']),
                 'the header values in any case, with spaces');
             // Chrome's prefetch proxy, iOS, Android and password managers ask below /.well-known/ unprompted.
-            same(['reject', 404, false], $five('/.well-known/traffic-advice', '203.0.113.26', []), 'below /.well-known/: refused (SCAN-CGI), never counted');
+            same(['reject', 404, false], $five('/.well-known/traffic-advice', '203.0.113.26', []), 'below /.well-known/: refused (SCAN-CGI), not counted');
             same(['reject', 404, false], $five('//.well-known/%61pple-app-site-association', '203.0.113.27', []), '... however the path is written');
             // What a person or a tool chose to ask for counts as before.
             same(['throttle', 429, true], $five('/.env', '203.0.113.31', []), 'no Sec-Fetch headers (a scanner, an old browser): counted, banned');
@@ -270,6 +270,24 @@ return [
             same(0, $store->marked('ban:' . $ip, $now + 7), 'two counted and four uncounted refusals: not banned');
             listsRun($shield, Request::fromServer($plain + ['REQUEST_URI' => '/backup.sql']), $now + 8);
             truthy($store->marked('ban:' . $ip, $now + 9) > 0, 'the third counted one: banned');
+            // A scanner forging the headers to dodge the ban: banned all the same, after ten times as many.
+            $ip = '203.0.113.51';
+            $forged = ['REQUEST_METHOD' => 'GET', 'HTTP_HOST' => 'www.example.org', 'REMOTE_ADDR' => $ip, 'HTTP_USER_AGENT' => 'Mozilla/5.0 Firefox/136.0',
+                'REQUEST_URI' => '/.env', 'HTTP_SEC_FETCH_MODE' => 'no-cors', 'HTTP_SEC_FETCH_SITE' => 'cross-site'];
+            $limit = 3 * Shield::UNASKED_REFUSALS;
+            for ($i = 1; $i < $limit; $i++) {
+                listsRun($shield, Request::fromServer($forged), $now + $i);
+            }
+            same(0, $store->marked('ban:' . $ip, $now + $limit), ($limit - 1) . ' unasked refusals: not yet banned');
+            listsRun($shield, Request::fromServer($forged), $now + $limit);
+            truthy($store->marked('ban:' . $ip, $now + $limit + 1) > 0, "the {$limit}th: banned");
+            // Below /.well-known/ never, however many.
+            $ip = '203.0.113.52';
+            for ($i = 1; $i <= $limit + 5; $i++) {
+                listsRun($shield, Request::fromServer(['REQUEST_METHOD' => 'GET', 'HTTP_HOST' => 'www.example.org', 'REMOTE_ADDR' => $ip,
+                    'HTTP_USER_AGENT' => 'Mozilla/5.0 Firefox/136.0', 'REQUEST_URI' => '/.well-known/traffic-advice']), $now + $i);
+            }
+            same(0, $store->marked('ban:' . $ip, $now + $limit + 6), 'below /.well-known/: never counted');
         } finally {
             exec('rm -rf ' . escapeshellarg($dir));
         }
