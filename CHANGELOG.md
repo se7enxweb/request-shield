@@ -36,6 +36,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   50 -> 36 µs; short values are matched as before (one call).
 
 ### Fixed
+- **A ban no longer counts refusals the client did not choose** (RSF01-02).
+  `ban after <n> refusals` counted every refused request, whoever caused it.
+  A foreign page with twenty `<img src="https://www.example.org/.env">`
+  banned each of its visitors here, for all websites of the installation; an
+  old link elsewhere to an address refused today counted against whoever
+  followed it; and the prefetch proxies, phones and password managers that
+  ask below `/.well-known/` unprompted (`traffic-advice`,
+  `apple-app-site-association`, `assetlinks.json`) could be banned for it,
+  one proxy address for many people. Such a request is refused as before
+  but not counted: a page's own request (`Sec-Fetch-Mode` other than
+  `navigate`), a visitor sent by another website (`Sec-Fetch-Site:
+  cross-site`), a blocked path below `/.well-known/` (an attack pattern sent
+  there counts like anywhere else). Typed in, followed within
+  the site or sent without these headers, a refusal counts as before. A
+  scanner forging the headers is still refused every time, only not banned
+  for refusals. Looked at for a refused request only: nothing on the passing
+  path.
 - **A background request never gets the check page** (RSF03-02): a request
   a page's script sends with `fetch()` or `XMLHttpRequest`
   (`Sec-Fetch-Dest: empty`, `X-Requested-With: XMLHttpRequest`) is answered

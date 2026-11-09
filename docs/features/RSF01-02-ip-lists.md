@@ -109,12 +109,30 @@ set ban-max 1d        # at most (default 1d)
 | Signal | Counted when |
 |---|---|
 | `limits` | a request is past a limit: throttled (429), or the check that frees a spent budget |
-| `refusals` | a refusal for a blocked path or an attack pattern |
+| `refusals` | a refusal for a blocked path or an attack pattern that the client chose to ask for (below) |
 | `checks` | the check page is shown (a visitor who solves it is not shown it again) |
 | `<budget>` | a budget the site counts on demand (`consume('<budget>')`) is past its limit; a budget defined above the site blocks |
 
 - Counted per client as for the budgets: IPv4 by address, IPv6 by its /64.
   Only when the signal happens; a passing request counts nothing.
+- **A refusal counts only when the client chose the request.** Refused all
+  the same, but not counted:
+  - what **a page asked for by itself**: an image, a script, a `fetch()`
+    (the browser says so: `Sec-Fetch-Mode` is not `navigate`). Another
+    website with twenty `<img src="https://www.example.org/.env">` would
+    otherwise ban each of its visitors here;
+  - a visitor **sent by another website** (`Sec-Fetch-Site: cross-site`): an
+    old link elsewhere to an address that is refused today;
+  - a blocked path **below `/.well-known/`**: browsers, phones, prefetch
+    proxies and password managers ask there unprompted (`traffic-advice`,
+    `apple-app-site-association`, `assetlinks.json`, `passkey-endpoints`),
+    often one proxy address for many people. An attack pattern sent there
+    counts like anywhere else.
+
+  Browsers send the `Sec-Fetch-*` headers by themselves, and a page cannot
+  take them away. Typed into the address bar, followed within the site, or
+  sent without these headers (a scanner, an old browser), a refusal counts
+  as before.
 - **Never banned:** addresses let in (`exempt`), trusted proxies (`trust`),
   and verified crawlers ([known crawlers](RSF01-04-known-crawlers.md)), which keep getting
   the pause they understand. A client that only borrows a crawler's name is
@@ -191,6 +209,12 @@ single addresses spread over the internet:
 - With APCu a ban holds per server (each has its own memory); with the file
   store on a shared disk, for all of them. For the firewall level, feed the log
   line to fail2ban: cheaper still, and a good second line.
+- A scanner that sends `Sec-Fetch-Mode: no-cors` with every request is
+  refused every time but never banned for its refusals. Its requests cost
+  the shield a few microseconds each; `limits` and the request budget still
+  count them. Browsers send the `Sec-Fetch-*` headers over HTTPS only
+  (Chrome 76, Firefox 90, Safari 16.4 and later): on a site without HTTPS
+  every refusal counts, as before.
 - Behind a load balancer the client address must be right
   ([trusted proxies](RSF01-01-trusted-proxies.md)), or the balancer would be counted,
   which the shield refuses for trusted proxies anyway.

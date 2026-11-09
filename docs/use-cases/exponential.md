@@ -167,7 +167,7 @@ request is answered so without any change. Copy the `EXP-ADMIN-BG` line (or
 | Rule | What | Why |
 |---|---|---|
 | `EXP-PACE` | past 120 pages a minute per visitor the check; past 300 the check again, then the counter starts anew | Images, CSS and JavaScript come from the web server, so one page view is one request through PHP. 120 pages a minute is no person. |
-| `EXP-BAN` (watched first) | 10 refusals in 10 minutes → an hour off the site | System URLs, admin modules, internal files, made-up view parameters: who collects ten refusals is scanning. Verified search engines are never banned. Watched first, because old links to `content/view` from other websites can cause refusals too. |
+| `EXP-BAN` (watched first) | 10 refusals in 10 minutes → an hour off the site | System URLs, admin modules, internal files, made-up view parameters: who collects ten refusals is scanning. Verified search engines are never banned. A visitor who follows an old link to `content/view` from another website is refused but not counted (the browser says where the visitor comes from). Watched first all the same. |
 | `EXP-STRICT` (watched first) | any other query parameter → 404 | The frontend takes hardly any parameters: the search and the marketing tags (`@tracking`). Everything else is an attack tool's or a cache filler's. The log shows first what it would refuse. |
 | `@attacks` | SQL injection, scripts, paths … in the query and the headers → 403 | The reviewed attack patterns. They are the largest part of the cost (below); without `include @attacks`, about 11 µs less per request. |
 | `pass-ttl 2h`, `store-dir`, `log` | | A passed check lasts two hours. Counters, the generated secret and the log stay outside the document root (`EXP_VAR`). |

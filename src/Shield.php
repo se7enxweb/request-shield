@@ -798,9 +798,44 @@ final class Shield
             if ($d->spent) {
                 $this->signal('limits', $request, $now);
             }
-        } elseif ($d->action === Decision::REJECT && ($d->reason === 'blocked path' || $d->reason === 'attack')) {
+        } elseif ($d->action === Decision::REJECT && ($d->reason === 'blocked path' || $d->reason === 'attack')
+            && !self::notTheClientsChoice($d, $request)) {
             $this->signal('refusals', $request, $now);
         }
+    }
+
+    /**
+     * A refused request its client did not choose to send: it stays refused,
+     * but says nothing about the client, so it is not counted for a ban.
+     *
+     * - A page asked for it by itself -- an image, a script, a fetch()
+     *   (Sec-Fetch-Mode other than "navigate") -- or another website sent the
+     *   visitor (Sec-Fetch-Site: cross-site). Otherwise a foreign page with
+     *   twenty <img src="https://this.site/.env"> bans each of its visitors
+     *   here, and an old link elsewhere to an address refused today counts
+     *   against whoever follows it. Browsers send these headers by
+     *   themselves and a page cannot take them away; a scanner that forges
+     *   them is still refused every time, only not banned for its refusals.
+     * - It is below /.well-known/ (RFC 8615): browsers, phones, prefetch
+     *   proxies and password managers ask there unprompted (traffic-advice,
+     *   apple-app-site-association, assetlinks.json, passkey-endpoints ...),
+     *   one proxy address for many people and many websites. Only a refused
+     *   path: an attack pattern sent there counts like anywhere else. (A
+     *   path with "/../" never gets this far: PathSanityRule refuses it.)
+     *
+     * Only looked at for a refusal, never on the passing path.
+     */
+    private static function notTheClientsChoice(Decision $d, Request $request): bool
+    {
+        $mode = $request->header('Sec-Fetch-Mode');
+        if ($mode !== null && strcasecmp(trim($mode), 'navigate') !== 0) {
+            return true;
+        }
+        $site = $request->header('Sec-Fetch-Site');
+        if ($site !== null && strcasecmp(trim($site), 'cross-site') === 0) {
+            return true;
+        }
+        return $d->reason === 'blocked path' && strncasecmp($request->matchPath(), '/.well-known/', 13) === 0;
     }
 
     /** One signal: counted for every ban that names it; past its number, the ban (or, watched, a line in the log). */
