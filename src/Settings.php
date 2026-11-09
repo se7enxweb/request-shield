@@ -789,7 +789,7 @@ final class Settings
         $out = [];
         foreach (is_array($list) ? $list : [] as $i => $p) {
             if (!is_string($p) || @preg_match($p, '') === false) {
-                throw self::wrong("$key[$i]", 'a path pattern (stats-skip **/osm-proxy/** in a rule file)');
+                throw self::wrong("{$key}[$i]", 'a path pattern (stats-skip **/osm-proxy/** in a rule file)');
             }
             $out[] = $p;
         }
