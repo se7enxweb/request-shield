@@ -93,7 +93,7 @@ next: add the site's rules, then  request-shield check /var/www/request-shield/r
 [exit 0]
 
 $ mkdir -m 700 /var/www/request-shield/.request-shield && chown www-data: /var/www/request-shield/.request-shield && su -s /bin/sh www-data -c 'php /var/www/request-shield/request-shield.php check /var/www/request-shield/request-shield.rules'
-ok: 1 file(s) + built-in rules, 18 blocked patterns, 1 budget(s), 21 attack patterns; rule sets SCAN 2026.10.2, CRAWL 2026.10.1, WP 2026.10.1, TRACK 2026.10.1, ATK 2026.10.2, SITE 1
+ok: 1 file(s) + built-in rules, 20 blocked patterns, 1 budget(s), 21 attack patterns; rule sets SCAN 2026.11.1, CRAWL 2026.10.1, WP 2026.10.1, TRACK 2026.10.1, ATK 2026.10.2, SITE 1
 tier: S1 -- APCu is not available to the CLI (the web server may differ; apc.enable_cli=1 switches it on here); store-dir /var/www/request-shield/.request-shield/store is writable; the compiled settings' directory /var/www/request-shield/.request-shield is writable
 [exit 0]
 
@@ -116,7 +116,7 @@ $ grep -n "^\[SITE-\|^expect" /var/www/request-shield/request-shield.rules
 
 ## 5. Check
 $ su -s /bin/sh www-data -c 'php /var/www/request-shield/request-shield.php check /var/www/request-shield/request-shield.rules' | grep -E '^(ok|warning|tier)'
-ok: 1 file(s) + built-in rules, 18 blocked patterns, 1 budget(s), 21 attack patterns; rule sets SCAN 2026.10.2, CRAWL 2026.10.1, WP 2026.10.1, TRACK 2026.10.1, ATK 2026.10.2, SITE 1
+ok: 1 file(s) + built-in rules, 20 blocked patterns, 1 budget(s), 21 attack patterns; rule sets SCAN 2026.11.1, CRAWL 2026.10.1, WP 2026.10.1, TRACK 2026.10.1, ATK 2026.10.2, SITE 1
 tier: S1 -- APCu is not available to the CLI (the web server may differ; apc.enable_cli=1 switches it on here); store-dir /var/www/request-shield/.request-shield/store is writable; the compiled settings' directory /var/www/request-shield/.request-shield is writable
 [exit 0]
 

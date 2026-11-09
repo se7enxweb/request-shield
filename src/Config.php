@@ -218,6 +218,8 @@ final class Config
             '#/(vendor/phpunit|phpmyadmin|pma|adminer)(/|\.php|$)#',
             '#/(cgi-bin|\.well-known/(?!acme-challenge|security\.txt|change-password))#',
             '#/(composer\.(json|lock)|web\.config|docker-compose\.ya?ml|\.npmrc|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?)$#',
+            '#/\.(?:env[._-][a-z0-9._-]+$|(?:htaccess|user\.ini|aws|azure|gcloud|ssh|docker|dockerenv|kube|netrc|pgpass|my\.cnf|s3cfg|boto|pypirc|vault-token|terraform|bash_history|gitconfig|git-credentials|envrc|cursor|claude)(?:/|$))#',
+            '#/(?:c(?:redentials?|lient[-_]secrets?)\.(?:json|ya?ml|env|pem|key|txt|ini|conf|cfg|properties|toml|xml)|s(?:ecrets?\.(?:json|ya?ml|env|pem|key|txt|ini|conf|cfg|properties|toml|xml)|ervice[-_]?account[a-z0-9_-]*\.(?:json|ya?ml|env|pem|key|txt|ini|conf|cfg|properties|toml|xml)|erver\.key)|aws[-_]?(?:credentials|keys?)\.(?:json|ya?ml|env|pem|key|txt|ini|conf|cfg|properties|toml|xml)|priv(?:ate(?:[-_]?key\.(?:json|ya?ml|env|pem|key|txt|ini|conf|cfg|properties|toml|xml)|\.key)|key\.(?:json|ya?ml|env|pem|key|txt|ini|conf|cfg|properties|toml|xml)))$|\.(?:pem|p12|pfx|jks|keystore|ppk|kdbx|tfvars|tfstate(?:\.backup)?)$#',
         ];
     }
 
@@ -249,6 +251,8 @@ final class Config
             $s[3] => ['SCAN-DBTOOL', 'database and test tools: phpMyAdmin, Adminer, PHPUnit'],
             $s[4] => ['SCAN-CGI', 'cgi-bin, and .well-known except certificates, security.txt and password change'],
             $s[5] => ['SCAN-CONFIG', 'project and key files: composer.json, web.config, docker-compose.yml, .npmrc, id_rsa'],
+            $s[6] => ['SCAN-SECRETS', 'copies of .env and stored keys: .env.production, .aws, .ssh, .docker, .kube, .git-credentials, .htaccess'],
+            $s[7] => ['SCAN-KEYS', 'credential files and key stores: credentials.json, service-account.json, secrets.yml, private.key, .pem, .p12, .tfstate'],
             $w[0] => ['WP-FOLDERS', 'WordPress folders: /wp-admin, /wp-includes, /wp-content'],
             $w[1] => ['WP-SCRIPTS', 'WordPress scripts: wp-login.php, xmlrpc.php, wp-config.php'],
         ];

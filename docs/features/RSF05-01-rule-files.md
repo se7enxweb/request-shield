@@ -315,7 +315,7 @@ before the site's own rules — the same format, with IDs and descriptions:
 
 | File | IDs | Use |
 |---|---|---|
-| `rules/scanners.rules` | `SCAN-HIDDEN`, `SCAN-BACKUP`, `SCAN-TEST`, `SCAN-DBTOOL`, `SCAN-CGI`, `SCAN-CONFIG` | always read |
+| `rules/scanners.rules` | `SCAN-HIDDEN`, `SCAN-BACKUP`, `SCAN-TEST`, `SCAN-DBTOOL`, `SCAN-CGI`, `SCAN-CONFIG`, `SCAN-SECRETS`, `SCAN-KEYS` | always read |
 | `rules/wordpress.rules` | `WP-FOLDERS`, `WP-SCRIPTS` | `include @wordpress` (or `block @wordpress`), for sites that are not WordPress |
 | `rules/crawlers.rules` | `CRAWL-GOOGLE`, `CRAWL-GPTBOT`, … (19) | always read: the [known crawlers](RSF01-04-known-crawlers.md), with their address lists in `rules/crawlers/` |
 | `rules/tracking.rules` | `TRACK-UTM`, `TRACK-GOOGLE`, `TRACK-MICROSOFT`, `TRACK-META`, `TRACK-SOCIAL`, `TRACK-MAIL`, `TRACK-OTHER` | `include @tracking`: the marketing tags as known parameters ([known parameters](RSF02-05-known-parameters.md#the-marketing-tags-tracking)) |

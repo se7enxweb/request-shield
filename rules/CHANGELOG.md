@@ -9,6 +9,18 @@ names the revision it reviewed (`unblock [SCAN-BACKUP@1] at /downloads/**`) is
 warned by `bin/request-shield check` and the active rules page when the
 revision here is newer — the rule itself applies at once.
 
+## 2026.11.1
+
+`scanners.rules` (built in):
+
+| Rule | Revision | Matches |
+|---|---|---|
+| `SCAN-SECRETS` | 1 (new) | copies of `.env` -- a name after it: `.env.production`, `.env.local`, `.env-prod`, `.env_1`, in any folder (`SCAN-HIDDEN` has `.env` itself; `.env.bak` was `SCAN-BACKUP`'s already) -- and where tools keep their keys: `.aws`, `.azure`, `.gcloud`, `.ssh`, `.docker`, `.dockerenv`, `.kube`, `.terraform`, `.netrc`, `.pgpass`, `.my.cnf`, `.s3cfg`, `.boto`, `.pypirc`, `.vault-token`, `.git-credentials`, `.gitconfig`, `.envrc`, `.bash_history`, `.cursor`, `.claude`, and the server's `.htaccess` and `.user.ini`, as a file or a folder. `/tools/.envoy`, `/tags/.net`, `/.dockerignore` and `/blog/aws-pricing` pass. With `include @attacks`, `/.aws/…` and `/.ssh/…` were `ATK-EXPLOIT`'s; this rule answers first now, with or without that set. |
+| `SCAN-KEYS` | 1 (new) | credential files by their name -- `credentials`, `secrets`, `service-account…`, `client_secret`, `aws-credentials`, `aws-keys`, `private-key`, `privkey` with `.json`, `.yml`, `.yaml`, `.env`, `.pem`, `.key`, `.txt`, `.ini`, `.conf`, `.cfg`, `.properties`, `.toml` or `.xml`; `private.key`, `server.key` -- and key stores by their extension: `.pem`, `.p12`, `.pfx`, `.jks`, `.keystore`, `.ppk`, `.kdbx`, `.tfvars`, `.tfstate`, `.tfstate.backup`; in any folder. `/credentials-guide`, `/blog/secrets.html`, a Keynote file (`/slides/quarter.key`) and a certificate (`/downloads/root-ca.crt`) pass. |
+
+Both from what scanners asked 38 websites for in 30 days: every name in
+them was asked for, none is an address of a page.
+
 ## 2026.10.2
 
 `scanners.rules` (built in):

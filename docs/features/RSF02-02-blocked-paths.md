@@ -17,9 +17,10 @@ revisions and examples (`expect`) that `request-shield test` checks.
 
 ## Use cases
 
-- **Every site:** hidden files, backups, test scripts, database tools and
-  project or key files (composer.json, id_rsa) are never part of a public
-  site; scanners try them all day.
+- **Every site:** hidden files, backups, test scripts, database tools,
+  project or key files (composer.json, id_rsa), copies of `.env`, stored
+  keys and credential files (.env.production, .aws, credentials.json) are
+  never part of a public site; scanners try them all day.
 - **A site that is not WordPress:** `include @wordpress` turns away the
   requests for `/wp-login.php` and `/wp-admin/` that make up a large share of
   all attack traffic.
@@ -58,6 +59,8 @@ The shipped rules:
 | `SCAN-DBTOOL` | `@scanners` | database and test tools: phpMyAdmin, Adminer, PHPUnit |
 | `SCAN-CGI` | `@scanners` | cgi-bin, and .well-known except certificates, security.txt and password change |
 | `SCAN-CONFIG` | `@scanners` | project and key files: composer.json, composer.lock, web.config, docker-compose.yml, .npmrc, id_rsa (also id_dsa, id_ecdsa, id_ed25519 and their .pub) -- a scanner asks for them to learn what the site runs on; the web server sends a file that exists without PHP, so the rule spares the site's front controller the ones that do not |
+| `SCAN-SECRETS` | `@scanners` | copies of .env and stored keys: .env.production, .env.local, .env_1 (a name after `.env`), the folders and files where cloud, container and other tools keep their keys (.aws, .azure, .gcloud, .ssh, .docker, .kube, .terraform, .netrc, .pgpass, .my.cnf, .s3cfg, .boto, .pypirc, .vault-token, .git-credentials, .gitconfig, .envrc, .bash_history, .cursor, .claude), and the server's own .htaccess and .user.ini -- `SCAN-HIDDEN` has `.env` itself; `/tools/.envoy`, `/tags/.net` and `/.dockerignore` pass |
+| `SCAN-KEYS` | `@scanners` | credential files and key stores: credentials, secrets, service-account, client_secret, aws-credentials, private-key as .json, .yml, .env, .pem, .key, .txt, .ini … (credentials.json, config/serviceAccountKey.json, secrets.yml); private.key, server.key; and by their extension .pem, .p12, .pfx, .jks, .keystore, .ppk, .kdbx, .tfvars, .tfstate -- a Keynote file (`/slides/quarter.key`), a certificate to hand out (`/downloads/root-ca.crt`) and `/credentials-guide` pass; a site that hands out a `.pem` through PHP opens it with `unblock [SCAN-KEYS@1] at /downloads/**` |
 | `WP-FOLDERS` | `@wordpress` | WordPress folders: /wp-admin, /wp-includes, /wp-content |
 | `WP-SCRIPTS` | `@wordpress` | WordPress scripts: wp-login.php, xmlrpc.php, wp-config.php |
 

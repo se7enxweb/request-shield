@@ -383,7 +383,8 @@ return [
         same('reject blocked path', $from('198.51.100.7', '/admin/files/.env'), 'from anyone else: blocked');
         same('reject blocked path', $from('192.0.2.5', '/other/.env'), 'elsewhere: blocked');
         same('reject path traversal', $from('192.0.2.5', '/admin/files/%2e%2e/%2e%2e/config.php'), 'the path check is never lifted');
-        same('allow', $from('198.51.100.7', '/public/.well-known-ish/.htaccess'), 'one set, for everyone');
+        same('allow', $from('198.51.100.7', '/public/.well-known-ish/.htpasswd'), 'one set, for everyone');
+        same('reject blocked path', $from('198.51.100.7', '/public/.well-known-ish/.htaccess'), 'only the set named: another rule\'s file stays refused');
         same('reject blocked path', $from('198.51.100.7', '/public/dump.sql'), 'only that set');
         rulesFail(['site.rules' => "unblock at\n"], 'site.rules:1', 'unblock [<what>] at <paths>');
         rulesFail(['site.rules' => "unblock at /x for\n"], 'site.rules:1', 'unblock [<what>] at <paths>');
@@ -484,10 +485,10 @@ return [
         $dir = ruleDir(['site.rules' => "ids SITE\nversion 2026-09-29.2\ninclude ext/*.rules\n", 'ext/shop.rules' => "version 1.4.0\nblock /x\n"]);
         try {
             $s = Settings::from(RuleFile::read(["$dir/site.rules"])['config']);
-            same(['SCAN' => '2026.10.2', 'CRAWL' => '2026.10.1', 'ext/shop.rules' => '1.4.0', 'SITE' => '2026-09-29.2'], $s->origins['versions'], 'the built-ins, then in the order read; a file without namespace by its name');
+            same(['SCAN' => '2026.11.1', 'CRAWL' => '2026.10.1', 'ext/shop.rules' => '1.4.0', 'SITE' => '2026-09-29.2'], $s->origins['versions'], 'the built-ins, then in the order read; a file without namespace by its name');
             $bin = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(rsCli());
             exec("$bin check " . escapeshellarg("$dir/site.rules") . ' 2>&1', $out, $code);
-            truthy(strpos(implode("\n", $out), 'rule sets SCAN 2026.10.2, CRAWL 2026.10.1, ext/shop.rules 1.4.0, SITE 2026-09-29.2') !== false, implode("\n", $out));
+            truthy(strpos(implode("\n", $out), 'rule sets SCAN 2026.11.1, CRAWL 2026.10.1, ext/shop.rules 1.4.0, SITE 2026-09-29.2') !== false, implode("\n", $out));
             $html = \CjwNetwork\RequestShield\Waf\RulesPage::render($s, ['store' => new MemoryStore()]);
             truthy(strpos($html, '<code>SITE 2026-09-29.2</code>') !== false, 'on the rules page');
         } finally {

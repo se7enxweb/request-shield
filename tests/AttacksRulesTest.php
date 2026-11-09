@@ -222,8 +222,8 @@ return [
             '/boaform/admin/formLogin' => 'ATK-EXPLOIT',
             '/GponForm/diag' => 'ATK-EXPLOIT',
             '/_ignition/execute-solution' => 'ATK-EXPLOIT',   // Laravel Ignition (CVE-2021-3129)
-            '/.aws/credentials' => 'ATK-EXPLOIT',
-            '/.ssh/authorized_keys' => 'ATK-EXPLOIT',
+            '/.aws/credentials' => 'SCAN-SECRETS',            // stored keys: the scanner rule answers first, with or without @attacks
+            '/.ssh/authorized_keys' => 'SCAN-SECRETS',
             '/.ssh/id_rsa' => 'SCAN-CONFIG',                // a key: the scanner rule answers first
             '/composer.json' => 'SCAN-CONFIG',              // project files that tell a scanner what the site runs on
             '/vendor/x/composer.lock' => 'SCAN-CONFIG',
@@ -233,6 +233,25 @@ return [
             '/.npmrc' => 'SCAN-CONFIG',
             '/id_ed25519.pub' => 'SCAN-CONFIG',
             '/Composer.JSON' => 'SCAN-CONFIG',              // case does not matter
+            '/.env.production' => 'SCAN-SECRETS',           // the copies of .env a deploy leaves behind
+            '/api/.env.local' => 'SCAN-SECRETS',
+            '/.env_1' => 'SCAN-SECRETS',
+            '/.ENV-Prod' => 'SCAN-SECRETS',
+            '/.kube/config' => 'SCAN-SECRETS',              // stored keys of cloud and container tools
+            '/.docker/config.json' => 'SCAN-SECRETS',
+            '/.git-credentials' => 'SCAN-SECRETS',
+            '/.terraform/terraform.tfstate' => 'SCAN-SECRETS',
+            '/.user.ini' => 'SCAN-SECRETS',
+            '/credentials.json' => 'SCAN-KEYS',             // credential files by their name
+            '/config/serviceAccountKey.json' => 'SCAN-KEYS',
+            '/client_secret.json' => 'SCAN-KEYS',
+            '/aws-credentials.txt' => 'SCAN-KEYS',
+            '/secrets.yml' => 'SCAN-KEYS',
+            '/privatekey.pem' => 'SCAN-KEYS',
+            '/ssl/server.key' => 'SCAN-KEYS',
+            '/backup/keystore.jks' => 'SCAN-KEYS',          // key stores by their extension
+            '/terraform.tfstate.backup' => 'SCAN-KEYS',
+            '/prod.tfvars' => 'SCAN-KEYS',
             '/cgi-mod/index.cgi' => 'ATK-EXPLOIT',
             '/mifs/user/index.html' => 'ATK-EXPLOIT',
             '/x/wp-file-manager/lib/php/connector.minimal.php' => 'ATK-EXPLOIT',
@@ -288,6 +307,16 @@ return [
             '/docs/composer.json-explained',
             '/configuration',
             '/blog/web-config-tips',
+            '/tools/.envoy',                         // near misses of SCAN-SECRETS: a name that only starts like .env
+            '/tags/.net',
+            '/.dockerignore',
+            '/blog/aws-pricing',
+            '/credentials-guide',                    // near misses of SCAN-KEYS
+            '/blog/secrets.html',
+            '/jobs/secret-shopper',
+            '/docs/private-keys-explained',
+            '/slides/quarter.key',                   // a Keynote file is a .key too
+            '/downloads/root-ca.crt',                // a certificate to hand out
             '/?q=invokefunction',                    // the word alone: a search
             '/?q=think%20about%20it&ns=App%5CThink',  // "think" as a word, a namespace that ends in it
             '/?class=App%5CThink%5CFoo',             // Think inside a namespace, no ThinkPHP class after it
@@ -388,7 +417,8 @@ return [
         // The whole set -- content rules and exploit paths alike.
         $s = attacksRules("unblock @attacks\n");
         truthy(strncmp(attacksDecide($s, '/?id=1%20union%20select%202'), 'allow', 5) === 0, 'the set taken back');
-        truthy(strncmp(attacksDecide($s, '/.aws/credentials'), 'allow', 5) === 0, 'the exploit paths too');
+        truthy(strncmp(attacksDecide($s, '/hnap1'), 'allow', 5) === 0, 'the exploit paths too');
+        same('reject blocked path', attacksDecide($s, '/.aws/credentials'), 'stored keys stay refused: the scanner set has them too');
         same('reject blocked path', attacksDecide($s, '/.env'), 'the scanner set stays');
         // replace keeps the ID: the site swaps the tool list for its own.
         $s = attacksRules("replace [ATK-UA-TOOLS@2] block header User-Agent \\b(ourtool|sqlmap)\\b   # our scanner too\n");

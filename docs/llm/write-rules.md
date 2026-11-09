@@ -27,7 +27,7 @@ configuration and, if there is one, its access log. Then, finding by finding:
 | an admin or editor area | `[SITE-ADMIN] restrict /admin/** to <ranges>` | **yes**: only with the ranges the owner gives; else leave it to the application's login |
 | an API that machines call (JSON, tokens) | `[SITE-API] api-path /api/**` and, if it is called often, `challenge-exempt /api/**` | no |
 | a search, an expensive page | `[SITE-SEARCH] limit searches 10/min at /search` -- the eleventh in a minute gets 429 | no |
-| paths only attackers ask for that the starter misses (an old installer) | `[SITE-OLD] block /install/**` -- hidden files, backups, database tools, CGI and project or key files (composer.json, id_rsa) are in the scanner rules already | no |
+| paths only attackers ask for that the starter misses (an old installer) | `[SITE-OLD] block /install/**` -- hidden files, backups, database tools, CGI, project or key files (composer.json, id_rsa), copies of .env, stored keys and credential files (.env.production, .aws, credentials.json) are in the scanner rules already | no |
 | the site is **not** WordPress | `include @wordpress` (the starter has it, except for `--app=wordpress`) | no |
 
 A parameter with a fixed set of values, as a pattern (the line exactly as
