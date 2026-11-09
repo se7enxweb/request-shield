@@ -201,7 +201,12 @@ return [
             $req('GET', '/magazin/3', $a);
             $req('GET', '/magazin/4', $b);             // member B's first page: the shield learns the role
             $page = $req('GET', '/magazin/3', $b);
-            truthy($cache($page) === 'hit' && strpos($page[2], 'for members') !== false, 'member B: the members\' page member A made -- ' . $cache($page));
+            if (serverApcu()) {
+                truthy($cache($page) === 'hit' && strpos($page[2], 'for members') !== false, 'member B: the members\' page member A made -- ' . $cache($page));
+            } else {
+                // No APCu in the server (minimal hosting, the CI legs without it): a page per role needs it (0039).
+                truthy($cache($page) !== 'hit' && strpos($page[2], 'for members') !== false, 'without APCu, member B: the members\' page made for them, nothing from the cache -- ' . $cache($page));
+            }
             // An editor: a role of their own -- never the members' page, never theirs to members.
             $ed = ['Cookie' => 'rs-demo-member=editor-e1'] + $host;
             $req('GET', '/magazin/4', $ed);

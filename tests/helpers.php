@@ -42,6 +42,18 @@ function serverPhp(): string
 }
 
 /**
+ * Whether a server started with serverPhp() (php -S, the same PHP and php.ini
+ * as the suite) has APCu: the module loaded and switched on, and not taken
+ * away by TESTS_HOSTING=minimal. apc.enable_cli does not matter there -- it
+ * is the command line's switch, not the built-in server's. A page per role
+ * (0039) needs it: without APCu a request with a session is the visitor's own.
+ */
+function serverApcu(): bool
+{
+    return getenv('TESTS_HOSTING') !== 'minimal' && extension_loaded('apcu') && filter_var(ini_get('apc.enabled'), FILTER_VALIDATE_BOOLEAN);
+}
+
+/**
  * The built single file the suite runs against (REQUEST_SHIELD_ENTRY, 0031
  * E.3), or null: the source tree (bootstrap.php, bin/request-shield).
  */
@@ -154,6 +166,23 @@ function startFpm(string $fpm, string $dir, int $port)
         usleep(100000);
     }
     return $proc;
+}
+
+/**
+ * Whether the PHP-FPM started by startFpm() on $port has APCu: asked of the
+ * pool itself (it reads its own php.ini, not the suite's), through a script
+ * of its own in $dir, without the shield in front.
+ */
+function fpmApcu(int $port, string $dir): bool
+{
+    file_put_contents("$dir/apcu-probe.php", '<?php echo function_exists("apcu_enabled") && apcu_enabled() ? "apcu" : "none";');
+    try {
+        $r = fcgi($port, ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/apcu-probe.php', 'SCRIPT_FILENAME' => "$dir/apcu-probe.php",
+            'SCRIPT_NAME' => '/apcu-probe.php', 'SERVER_PROTOCOL' => 'HTTP/1.1', 'REMOTE_ADDR' => '127.0.0.1']);
+    } finally {
+        @unlink("$dir/apcu-probe.php");
+    }
+    return $r[2] === 'apcu';
 }
 
 /**
