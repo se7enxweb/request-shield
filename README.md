@@ -107,7 +107,7 @@ server and PHP slots, just very briefly.
 - **0.3.0:** rule files, access rules, rule IDs, the log, the active rules
   page, attack rules, match blocks, the check inside the form, earning back a
   spent budget (forms and APIs), the demo; PHP 8.0.
-- **Unreleased:** known query parameters and their types, `query strict`,
+- **0.4.0:** known query parameters and their types, `query strict`,
   `@tracking` ([docs](docs/features/RSF02-05-known-parameters.md)); modes — monitor
   first, strict under attack, `monitor` for single rules, `challenge …
   max-age` ([docs](docs/features/RSF05-03-modes.md)); known crawlers — search engines
@@ -125,7 +125,9 @@ server and PHP slots, just very briefly.
   comment ([docs](docs/features/RSF06-02-live-and-lists.md)); public blocklists
   (Spamhaus DROP, DShield, blocklist.de, Tor, cloud ranges …) fetched by cron,
   each with its own action, and exported for a firewall
-  ([docs](docs/features/RSF01-03-blocklist-feeds.md)).
+  ([docs](docs/features/RSF01-03-blocklist-feeds.md)); the dashboard's
+  firewall pages, an HTTP API and an HTTP cache (a page per role) as plugins;
+  one file to deploy, with `init`, `verify` and `self-update`.
 - **Next:** adapters for
   Exponential, WordPress and Ibexa; exporting the rules to nginx, Apache and
   Varnish.
