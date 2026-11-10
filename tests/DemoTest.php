@@ -46,7 +46,10 @@ function withDemo(callable $body, string $prefix = '', array $env = []): void
                     $opts['header'] .= "Content-Type: application/x-www-form-urlencoded\r\n";
                 }
             }
+            $t0 = microtime(true);
+            error_clear_last();
             $body = @file_get_contents("http://127.0.0.1:$port$prefix$uri", false, stream_context_create(['http' => $opts]));
+            $why = (string) (error_get_last()['message'] ?? '');
             $status = 0;
             $shield = null;
             $cookies = [];
@@ -62,11 +65,15 @@ function withDemo(callable $body, string $prefix = '', array $env = []): void
                 }
             }
             if ($status === 0) {
-                // No answer: say whether the server is gone (and how) rather than leave a bare 0 to the caller.
-                $st = proc_get_status($proc);
-                if (!$st['running']) {
-                    throw new TestFailure("$method $uri: no answer, the demo's server ended -- " . ($st['signaled'] ? 'signal ' . $st['termsig'] . ' (11: PHP crashed)' : 'exit ' . $st['exitcode']));
+                // No answer: say why rather than leave a bare 0 to the caller -- whether the server
+                // is gone (and how; a crash writing its core dump still runs for a moment, so ask
+                // again for up to two seconds), how long the request waited, and what PHP said.
+                $took = sprintf('%.1f s', microtime(true) - $t0);
+                for ($i = 0; $i < 20 && ($st = proc_get_status($proc))['running']; $i++) {
+                    usleep(100000);
                 }
+                throw new TestFailure("$method $uri: no answer after $took (" . ($why !== '' ? $why : 'no message') . ') -- the demo\'s server '
+                    . ($st['running'] ? 'still runs' : 'ended, ' . ($st['signaled'] ? 'signal ' . $st['termsig'] . ' (11: PHP crashed)' : 'exit ' . $st['exitcode'])));
             }
             $location = null;
             foreach ($http_response_header ?? [] as $line) {

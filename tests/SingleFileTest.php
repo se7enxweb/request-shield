@@ -48,7 +48,9 @@ function singleBuild(string $args): array
 /** @return array{0: list<string>, 1: int} what a PHP snippet printed, and its exit code */
 function singlePhp(string $code, string $flags = ''): array
 {
-    exec(escapeshellarg(PHP_BINARY) . " $flags -r " . escapeshellarg($code) . ' 2>&1', $out, $exit);
+    // error_log empty: PHP's own default on the command line, stderr -- the tests read the
+    // shield's one-line messages there, also where php.ini sends the log to a file.
+    exec(escapeshellarg(PHP_BINARY) . " -d error_log= $flags -r " . escapeshellarg($code) . ' 2>&1', $out, $exit);
     return [$out, $exit];
 }
 
