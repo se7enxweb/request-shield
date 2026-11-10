@@ -34,7 +34,7 @@ function withDemo(callable $body, string $prefix = '', array $env = []): void
         usleep(100000);
     }
     try {
-        $body(function (string $method, string $uri, array $headers = [], string $content = '') use ($port, $prefix): array {
+        $body(function (string $method, string $uri, array $headers = [], string $content = '') use ($port, $prefix, $proc): array {
             $h = '';
             foreach ($headers as $k => $v) {
                 $h .= "$k: $v\r\n";
@@ -59,6 +59,13 @@ function withDemo(callable $body, string $prefix = '', array $env = []): void
                 }
                 if (preg_match('#^Set-Cookie:\s*([^=]+)=([^;]*)#i', $line, $m)) {
                     $cookies[$m[1]] = $m[2];
+                }
+            }
+            if ($status === 0) {
+                // No answer: say whether the server is gone (and how) rather than leave a bare 0 to the caller.
+                $st = proc_get_status($proc);
+                if (!$st['running']) {
+                    throw new TestFailure("$method $uri: no answer, the demo's server ended -- " . ($st['signaled'] ? 'signal ' . $st['termsig'] . ' (11: PHP crashed)' : 'exit ' . $st['exitcode']));
                 }
             }
             $location = null;
