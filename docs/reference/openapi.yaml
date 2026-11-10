@@ -2,7 +2,7 @@
 openapi: "3.1.0"
 info:
   title: "request-shield"
-  version: "0.4.0"
+  version: "0.5.0-dev"
   description: "The shield's data: status, rules, the live view, the lists, the statistics. Guarded like the dashboard: a restrict rule, or Authorization: Bearer <token>."
 servers:
   - 
