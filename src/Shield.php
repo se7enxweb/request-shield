@@ -56,7 +56,7 @@ final class Shield
      * BUILD is "source" in the repository; the single-file build (proposal
      * 0002) writes the tag and commit into it.
      */
-    public const VERSION = '0.4.0-dev';
+    public const VERSION = '0.4.0';
     public const BUILD = 'source';
 
     /** @var list<Rule> */

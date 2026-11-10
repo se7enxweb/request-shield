@@ -6,6 +6,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-11-10
+
+The firewall grew from a rule file into a small WAF with plugins: known
+query parameters and `query strict`/`query drop`; modes (monitor first,
+strict under attack, `monitor` per rule); known crawlers, AI crawlers
+included, verified by their published address lists or DNS; IP lists,
+temporary bans and public blocklists as feeds (Spamhaus DROP, DShield,
+blocklist.de, Tor exits, cloud ranges), exported for a firewall; rules per
+website (`site` blocks); new attack and scanner rules (`SCAN-SECRETS`,
+`SCAN-KEYS`, `SCAN-CONFIG`, `@devtools`, SSTI, SSRF, PHP objects, SQL);
+error pages of the site's own. Plugins, each its own edition of the single
+file and its own Composer package: the statistics, the dashboard's
+firewall pages (live view, lists, rules & setup), an HTTP API with its
+contract, and an HTTP cache that keeps one page per role and speaks the
+CMSes' tags and purges. One file to deploy (`build/single-file.php`, the
+release's `request-shield.php`), `init`, `verify`, `self-update`,
+`advise`, a demo and a showcase. PHP 8.0 to 8.5.
+
+### Upgrading from 0.3.0
+
+- **Header and cookie names are shorter**, the old ones are not read any
+  more: `X-RS` (was `X-Request-Shield`), `X-RS-Monitor`, the site asks for
+  the check with `X-RS-Check: 1` (was `X-Request-Shield-Challenge:
+  required`); cookies `rsp`, `rss`, `rsd` (were `rs_pass`, `rs_solution`,
+  `rs_stats`) -- a visitor with an old pass is checked once more.
+- **Where the shield keeps its files:** a relative `store-dir` or
+  `lists-dir` is the rule file's directory now, not PHP's working
+  directory; without `store-dir` the store is `.request-shield/store` next
+  to the settings file, not the system's temp dir. The secret, bans, lists
+  and statistics start afresh in the new place -- write the old path out to
+  keep them. New files are `0600` in `0700` folders (`set file-mode 0640`,
+  `set dir-mode 0750` for a log reader in PHP's group).
+- **More is refused by default:** `@devtools` (build files, debug pages,
+  API consoles, source maps) and the new scanner rules `SCAN-SECRETS`,
+  `SCAN-KEYS`, `SCAN-CONFIG` answer 404 on every site; a site that serves
+  one of those paths through PHP takes the rule back (`unblock
+  [DEV-APIDOCS@1]`, or the whole set: `unblock @devtools`). Run
+  `request-shield test` on the site's rules first.
+- **Bans count differently:** a refusal the client did not ask for (a
+  page's own request, or one sent by another website) counts against ten
+  times the `ban after <n> refusals`; `/.well-known/` never counts.
+- **A background request gets the check as JSON**, not the check page
+  (`Sec-Fetch-Dest: empty`, `X-Requested-With: XMLHttpRequest`).
+- **The dashboard's addresses moved:** `<dashboard-path>/stats/…` for the
+  statistics, `<dashboard-path>/waf/…` for live, lists and rules; the old
+  `/rs/dashboard`, `/rs/live`, `/rs/lists`, `/rs/rules`, … are gone.
+- **For code using the classes:** the statistics' and the firewall pages'
+  classes moved to `plugins/stats` and `plugins/waf`, the statistics'
+  settings to `ext.stats`; see *Changed* below.
+- The release files are not signed yet: `request-shield verify` checks a
+  download against `SHA256SUMS`; GitHub's build attestation
+  (`gh attestation verify`) says where it was built.
+
 ### Changed
 - **A relative `store-dir` or `lists-dir` is the rule file's directory**
   (RSF05-02), as `log` already was -- before, it depended on the directory
@@ -1827,7 +1880,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `Shield::consume()`, APCu, file and memory stores, `bootstrap.php` for
   `auto_prepend_file`.
 
-[Unreleased]: https://github.com/cjw-network/request-shield/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/cjw-network/request-shield/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/cjw-network/request-shield/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/cjw-network/request-shield/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/cjw-network/request-shield/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/cjw-network/request-shield/releases/tag/v0.1.0
