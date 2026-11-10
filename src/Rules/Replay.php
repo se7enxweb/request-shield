@@ -249,7 +249,7 @@ final class Replay
             $ex = ['method' => $r['method'], 'url' => $r['url'], 'outcome' => 'answered', 'by' => null, 'rule' => null, 'from' => $x['from'], 'pass' => false, 'times' => 1,
                 'headers' => array_diff_key($r['headers'], ['user-agent' => 1]), 'text' => null, 'at' => 'replay', 'site' => null, 'ua' => $r['headers']['user-agent'] ?? null, 'demo' => null];
             $d = Examples::one($s, $ex);
-            $kind = in_array($d['got'], ['passes', 'uncached'], true) ? 'pass' : ($d['got'] === 'check' ? 'check' : 'refused');
+            $kind = in_array($d['got'], ['passes', 'uncached'], true) ? 'pass' : ($d['got'] === 'check' || $d['got'] === 'json-check' ? 'check' : 'refused');
             $results[] = ['method' => $r['method'], 'url' => $r['url'], 'count' => $x['count'], 'got' => $d['got'], 'rule' => $d['gotRule'], 'http' => $d['http'], 'kind' => $kind, 'found' => $x['found']];
         }
         return ['results' => $results, 'total' => count($requests), 'static' => $static, 'foreign' => $foreign];

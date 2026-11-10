@@ -180,10 +180,13 @@ final class Examples
         $request = Request::fromServer($server, $s->trustedProxies);
         $d = Decision::allow();
         $final = $d;
+        $json = null;
         for ($i = 0; $i < $x['times']; $i++) {
             $request = Request::fromServer($server, $s->trustedProxies);
             $d = $shield->decide($request, $now);
-            $final = $shield->settle($d, $request, $now)['decision'];
+            $settled = $shield->settle($d, $request, $now);
+            $final = $settled['decision'];
+            $json = $settled['json'];
             if (!$final->passes() && $s->bans !== []) {
                 $shield->signals($final, $request, $now);       // as protect(): refusals may lead to a ban
             }
@@ -192,16 +195,21 @@ final class Examples
             $final = Decision::allowUncached('monitor');    // as protect(): watched, let through, never cached (--as-written)
         }
         $got = self::outcome($final);
+        if ($got === 'check' && $json !== null) {
+            $got = 'json-check';        // the check as JSON (an API, a background request), not the page
+        }
         // What the visitor would get: the site's own answer (200, its headers) when it passes,
         // else the shield's status and headers -- the same lines Responder sends.
         $http = $final->passes() ? 200 : $final->status;
-        $headers = $final->passes() ? [] : \CjwNetwork\RequestShield\Responder::headerLines($final);
+        $headers = $final->passes() ? [] : ($got === 'json-check' && $json !== null ? \CjwNetwork\RequestShield\Responder::apiHeaderLines($final, $json)
+            : \CjwNetwork\RequestShield\Responder::headerLines($final));
         $gotRule = $final->passes() && $final->action === Decision::ALLOW ? null : $shield->explain($d, $request);
         if ($about !== null && !self::inEffect($s, $about) && !(isset($s->origins['monitor'][$about]) && !$asWritten)) {
             $why = isset($s->origins['monitor'][$about]) ? "$about is only watched (monitor) -- test without --as-written" : "$about is not in effect here (taken back or replaced)";
             return ['example' => $x, 'about' => $x['by'] ?? $x['rule'], 'status' => 'skip', 'got' => $got, 'gotRule' => $gotRule, 'why' => $why, 'http' => $http, 'headers' => $headers];
         }
-        $ok = ($got === $x['outcome'] || ($x['outcome'] === 'answered' && ($got === 'passes' || $got === 'uncached'))) && ($about === null || $gotRule === $about);
+        $ok = ($got === $x['outcome'] || ($x['outcome'] === 'answered' && ($got === 'passes' || $got === 'uncached'))
+            || ($x['outcome'] === 'check' && $got === 'json-check')) && ($about === null || $gotRule === $about);
         $why = $ok ? '' : 'expected ' . $x['outcome'] . ($about !== null ? " by $about" : '') . ', got ' . $got . ($gotRule !== null ? " by $gotRule" : '');
         return ['example' => $x, 'about' => $x['by'] ?? $x['rule'], 'status' => $ok ? 'pass' : 'fail', 'got' => $got, 'gotRule' => $gotRule, 'why' => $why, 'http' => $http, 'headers' => $headers];
     }

@@ -7,9 +7,20 @@
 # needs on top. Reasons: docs/use-cases/exponential.md.
 
 ids EXP
-version 2026-10-02.1
+version 2026-10-17.1
 
 include     exponential.rules                                  # the frontend: system URLs, forms, search, pace
+
+# The admin's pages load parts of themselves in the background (fetch): the mega
+# menu today (/admin/user/megamenu/<tab>), ezjscore calls and other fragments
+# tomorrow. A script cannot show or solve the check page, so a check comes as
+# JSON (429, Request-Shield-Challenge) and the page can reload itself. The shield
+# already answers any fetch so (Sec-Fetch-Dest: empty, X-Requested-With); this
+# names the paths for clients that send neither.
+[EXP-ADMIN-BG]      api-path /admin/user/megamenu/**          # the admin's background fragments: the check as JSON, never the page
+expect GET /admin/user/megamenu/setup with pass                answered
+expect GET /admin/user/megamenu/setup header X-Requested-With:XMLHttpRequest   json-check by EXP-ADMIN-CHECK   # no pass: JSON, not the HTML check page
+expect GET /admin/user/megamenu/users                          json-check by EXP-ADMIN-CHECK   # also without the fetch headers
 
 match /admin/** {
   [EXP-ADMIN-SYS]   unblock [EXP-SYSVIEW] [EXP-MODULES]       # the admin uses system URLs (/admin/content/view/full/2) and its modules
@@ -20,6 +31,7 @@ match /admin/** {
   expect POST /admin/content/edit/87/1/ger-DE with pass  answered
   [EXP-ADMIN-CHECK] challenge                                 # every editor: the browser check once per pass
   expect GET /admin/dashboard                         check
+  expect GET /admin/content/view/full/2 header Sec-Fetch-Dest:empty   json-check   # any fetch of the admin's: the check as JSON
   expect POST /admin/class/edit/1 header Origin:https://www.example.org   check
   expect GET /admin/user/login                        check by EXP-LOGIN   # the login: the frontend's rule
   [EXP-ADMIN-AREA]  backend                                   # the editors' area: its forms counted apart in the statistics

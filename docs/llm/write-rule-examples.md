@@ -18,7 +18,9 @@ expect <METHOD> <address> <outcome> [by <ID>] [from <address>] [with pass] [time
 ```
 
 Outcomes: `passes` (answered, may be cached), `uncached` (answered, not
-cached), `answered` (either), `check` (the browser check), or the status a
+cached), `answered` (either), `check` (the browser check: the page, or JSON
+for an API or a background request), `json-check` (the check as JSON only,
+never the page), or the status a
 refusal has: `403`, `404`, `405`, `429`. Without `by`, the example is about
 the rule it follows.
 
