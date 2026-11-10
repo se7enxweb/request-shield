@@ -127,7 +127,7 @@ final class Shield
             $this->rules[] = new DenyRule($s->denyTable);
         }
         if (isset($s->feedTables['deny']) || self::hasAt($s, 'deny')) {
-            $this->rules[] = new FeedRule(\Closure::fromCallable([$this, 'feedHit']));
+            $this->rules[] = new FeedRule($this);       // it calls feedHit(); no closure of it (FeedRule, JitTest)
         }
         if ($s->bans !== [] && $s->mode !== 'monitor') {
             if ($s->banKeep === 'file' && $this->store instanceof ApcuStore) {

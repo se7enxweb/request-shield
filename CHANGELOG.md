@@ -36,6 +36,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   50 -> 36 µs; short values are matched as before (one call).
 
 ### Fixed
+- **PHP 8.0 with OPcache's JIT no longer crashes on a site with feeds**
+  (RSF01-03). With `opcache.jit=1235` (the function JIT on hot code, as
+  setup-php and many hosts switch it on) PHP 8.0 crashed with a segfault
+  once the shield had decided a few hundred requests: the deny feeds' rule
+  called the shield's lookup through `\Closure::fromCallable()`, and PHP
+  8.0's JIT mishandles calls through that kind of closure. Seen in CI every
+  few runs, always in FeedsTest. `FeedRule` now holds the shield and calls
+  `feedHit()` itself -- no closure, and one call less per request. PHP 8.1
+  and later were not affected. A new test (`JitTest`) runs the shield
+  under that JIT; on PHP 8.0 it crashed on the old code on 8 runs of 8.
 - **A refusal the client did not ask for no longer bans it so soon**
   (RSF01-02). `ban after <n> refusals` counted every refused request,
   whoever caused it. A foreign page with twenty
