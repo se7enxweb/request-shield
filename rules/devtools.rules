@@ -1,19 +1,20 @@
-# Built into cjw-network/request-shield, on request: "include @devtools"
-# (or "block @devtools") in the site's rules.
+# Built into cjw-network/request-shield, read by every site like
+# scanners.rules ("include @devtools" is allowed, and changes nothing).
 #
 # Addresses of other software's tools: build files, settings files, debug and
 # status pages, API consoles, a development server's own addresses. A scanner
 # asks for them to learn what a site runs on, or to read what a debug page
-# gives away. Not read by default, because some sites serve one of them
-# through PHP: a Symfony site in development has /_profiler, an API its
-# /swagger-ui. Such a site takes that rule back ("unblock [DEV-APIDOCS]") or
-# opens it for the office ("unblock [DEV-DEBUG@1] at /_profiler/** for 192.0.2.0/24").
+# gives away. A site that serves one of them through PHP -- a Symfony site in
+# development has /_profiler, an API its /swagger-ui -- takes that rule back
+# ("unblock [DEV-APIDOCS]"), opens it for the office ("unblock [DEV-DEBUG@1]
+# at /_profiler/** for 192.0.2.0/24"), or takes back the whole set
+# ("unblock @devtools").
 #
 # From what scanners asked 38 websites for in 30 days; none of the names is
 # the address of a page there.
 
 ids DEV required
-version 2026.11.1
+version 2026.11.2
 
 [DEV-BUILD@1]     block regex /(?:package(?:-lock)?\.json|yarn\.lock|pnpm-lock\.yaml|dockerfile|makefile|gemfile(?:\.lock)?|requirements\.txt|go\.(?:mod|sum)|cargo\.(?:toml|lock)|phpunit\.xml(?:\.dist)?|tsconfig\.json|(?:webpack|vite|next|nuxt)\.config\.[cm]?[jt]s)$   # build files: package.json, yarn.lock, Dockerfile, Makefile, requirements.txt, phpunit.xml, webpack.config.js
 expect GET /package.json              404
@@ -28,7 +29,7 @@ expect GET /php.ini                   404
 expect GET /appsettings.Production.json  404
 expect GET /config/database.yml       404
 expect GET /app/settings.py           404
-expect GET /settings                 answered   # a near miss: a page
+expect GET /account/settings         answered   # a near miss: a page
 expect GET /docs/application.html    answered   # a near miss: another extension
 [DEV-DEBUG@1]     block regex ^/(?:_profiler|_wdt|telescope|horizon|_ignition|_debugbar|debug/(?:vars|pprof|default)|actuator|jolokia|h2-console|server-status|server-info|elmah\.axd|trace\.axd|jmx-console|web-console|manager/html)(?:/|$)   # debug and status pages: Symfony's profiler, Laravel's Telescope and Horizon, Spring's actuator, server-status
 expect GET /_profiler/phpinfo         404

@@ -40,7 +40,7 @@ final class RuleFile
     public const POLICIES = ['allow', 'check', 'block'];
 
     /** The sets "block @name" adds and "unblock @name" takes away. */
-    private const SETS = ['scanners', 'wordpress', 'tracking'];
+    private const SETS = ['scanners', 'devtools', 'wordpress', 'tracking'];
 
     /** "set" keys => [setting path, type]. */
     private const SET = [
@@ -181,7 +181,7 @@ final class RuleFile
     {
         $this->c = Config::defaults();
         $this->c['recheck'] = 10;
-        // The built-in blocks come from rules/scanners.rules, read first, so
+        // The built-in blocks come from rules/scanners.rules and rules/devtools.rules, read first, so
         // they have IDs and descriptions like every other rule.
         $this->c['blockedPaths'] = [];
         $this->origins['budgets']['requests'] = 'default';
@@ -244,6 +244,7 @@ final class RuleFile
         $main = $files === [] ? false : realpath(dirname($files[count($files) - 1]));
         $r->base = $main === false ? '' : $main . '/';
         $r->shippedSet('scanners', null);
+        $r->shippedSet('devtools', null);
         $r->shippedSet('crawlers', null);
         foreach ($files as $file) {
             $r->source($file, null, null);

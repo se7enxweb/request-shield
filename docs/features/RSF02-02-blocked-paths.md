@@ -9,11 +9,10 @@ Some addresses are asked for only by scanners: `/.env`, `/.git/config`,
 "not found" (404) before the site runs -- the scanner learns nothing, the site
 spends nothing, and the log names the rule.
 
-Every site has the shipped set `@scanners` (`rules/scanners.rules`), read
-before its own rules. A site that is **not** WordPress adds `include
-@wordpress`: WordPress's folders and scripts are the most scanned paths there
-are. A site that serves no build files, debug pages or API consoles
-through PHP adds `include @devtools`. All three are rule files like a site's
+Every site has the shipped sets `@scanners` (`rules/scanners.rules`) and
+`@devtools` (`rules/devtools.rules`), read before its own rules. A site that
+is **not** WordPress adds `include @wordpress`: WordPress's folders and
+scripts are the most scanned paths there are. All three are rule files like a site's
 own -- with IDs, descriptions, revisions and examples (`expect`) that
 `request-shield test` checks.
 
@@ -26,12 +25,14 @@ own -- with IDs, descriptions, revisions and examples (`expect`) that
 - **A site that is not WordPress:** `include @wordpress` turns away the
   requests for `/wp-login.php` and `/wp-admin/` that make up a large share of
   all attack traffic.
-- **A site without other software's tools:** `include @devtools` turns away
-  the requests for `/package.json`, `/actuator/env`, `/_profiler`,
+- **Every site, too: other software's tools.** `@devtools` turns away the
+  requests for `/package.json`, `/actuator/env`, `/_profiler`,
   `/server-status`, `/swagger-ui.html` and `main.js.map` -- what a scanner
-  asks for to learn what a site runs on. Not read by default: a Symfony site
-  in development has `/_profiler`, an API its `/swagger-ui`; such a site takes
-  that one rule back.
+  asks for to learn what a site runs on. A site that serves one of them
+  through PHP -- a Symfony site in development has `/_profiler`, an API its
+  `/swagger-ui` -- takes that one rule back (`unblock [DEV-APIDOCS@1]`),
+  opens it for some addresses, or takes back the whole set (`unblock
+  @devtools`).
 - **A path of the site's own that only attackers ask for:** an old installer,
   a forgotten admin tool -- `block /install/**`.
 
@@ -39,8 +40,7 @@ own -- with IDs, descriptions, revisions and examples (`expect`) that
 
 ```text
 include @wordpress                                 # this is not WordPress
-include @devtools                                  # no build files, debug pages or API consoles here
-unblock [DEV-APIDOCS@1]                            # … but this site shows its API's description
+unblock [DEV-APIDOCS@1]                            # this site shows its API's description (@devtools is built in)
 [SITE-OLD] block /install/** /phpmyadmin/**        # paths of your own
 
 replace [SCAN-BACKUP@1] block *.sql *.bak          # one rule written differently, its ID kept

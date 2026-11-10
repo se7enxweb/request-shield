@@ -123,7 +123,7 @@ return [
         same(['GET', 'HEAD', 'POST', 'OPTIONS', 'PUT'], $s->methods);
         truthy(in_array('#^/wp\-admin(?:/.*)?$#', $s->blockedPaths, true), 'glob block');
         truthy(in_array('#^/(phpmyadmin|adminer)#', $s->blockedPaths, true), 'regex block');
-        truthy(count($s->blockedPaths) === 3 + count(\CjwNetwork\RequestShield\Config::scannerPaths()), 'added to the scanner paths');
+        truthy(count($s->blockedPaths) === 3 + count(\CjwNetwork\RequestShield\Config::defaults()['blockedPaths']), 'added to the built-in paths');
         same(['page', 'offset'], $s->cacheableQuery);
         same(['#^/$#', '#^/news(?:/.*)?$#'], $s->cacheablePaths);
         same([600, 60, 300, false], [$s->budgets['requests']->limit, $s->budgets['requests']->window, $s->budgets['requests']->challengeAt, $s->budgets['requests']->onDemand]);
@@ -139,14 +139,14 @@ return [
         same(['title' => 'Einen Moment, bitte'], $s->challenge->texts);
     },
     'RSF05-01 taking back: none, any, unblock, no-limit' => function (): void {
-        $s = rulesFrom("block /x/**\nunblock /x/**\nunblock @scanners\nexempt none 192.0.2.1\nno-limit requests\ncache-path /a\ncache-path any\nmethod none GET\n");
-        same([], $s->blockedPaths, 'the scanner set and the block taken back');
+        $s = rulesFrom("block /x/**\nunblock /x/**\nunblock @scanners\nunblock @devtools\nexempt none 192.0.2.1\nno-limit requests\ncache-path /a\ncache-path any\nmethod none GET\n");
+        same([], $s->blockedPaths, 'the built-in sets and the block taken back');
         same(['192.0.2.1'], $s->exemptIps, 'none empties the defaults too');
         same([], $s->budgets, 'no-limit switches the default budget off');
         same(null, $s->cacheablePaths, 'any: every path');
         same(['GET'], $s->methods);
         same([], rulesFrom("cache-query none\n")->cacheableQuery, 'none: no parameter');
-        truthy(count(rulesFrom("block @wordpress\n")->blockedPaths) === count(\CjwNetwork\RequestShield\Config::scannerPaths()) + 2, 'the WordPress set');
+        truthy(count(rulesFrom("block @wordpress\n")->blockedPaths) === count(\CjwNetwork\RequestShield\Config::defaults()['blockedPaths']) + 2, 'the WordPress set');
     },
     'RSF05-01 the decisions follow the rules' => function (): void {
         $s = rulesFrom("host www.example.org\nblock /wp-admin/**\ncache-path / /page/*\ncache-query page\nchallenge /login\n");
@@ -462,18 +462,19 @@ return [
             exec('rm -rf ' . escapeshellarg($dir));
         }
     },
-    'RSF02-02 @devtools: on request only -- build files, settings files, debug pages, API consoles, source maps; one rule taken back or opened' => function (): void {
+    'RSF02-02 @devtools: built in -- build files, settings files, debug pages, API consoles, source maps; one rule taken back or opened, or the whole set' => function (): void {
         $cases = ['/package.json' => 'DEV-BUILD', '/app/Dockerfile' => 'DEV-BUILD', '/vite.config.ts' => 'DEV-BUILD',
             '/php.ini' => 'DEV-APPCONFIG', '/appsettings.Production.json' => 'DEV-APPCONFIG', '/config/database.yml' => 'DEV-APPCONFIG',
             '/_profiler/phpinfo' => 'DEV-DEBUG', '/actuator/env' => 'DEV-DEBUG', '/telescope/requests' => 'DEV-DEBUG', '/server-status' => 'DEV-DEBUG',
             '/swagger-ui.html' => 'DEV-APIDOCS', '/v2/api-docs' => 'DEV-APIDOCS', '/openapi.json' => 'DEV-APIDOCS',
             '/assets/main.js.map' => 'DEV-SOURCE', '/@fs/etc/passwd' => 'DEV-SOURCE', '/__vite_ping' => 'DEV-SOURCE'];
-        $plain = rulesFrom('');
+        $off = rulesFrom("unblock @devtools\n");
         foreach (array_keys($cases) as $path) {
-            same('allow', decideFor($plain, $path), "not read by default: $path");
+            same('allow', decideFor($off, $path), "the whole set taken back: $path");
         }
-        $s = rulesFrom("include @devtools\n");
-        same(count(\CjwNetwork\RequestShield\Config::scannerPaths()) + 5, count($s->blockedPaths), 'five rules on top of the scanner rules');
+        $s = rulesFrom('');
+        same(count(\CjwNetwork\RequestShield\Config::scannerPaths()) + 5, count($s->blockedPaths), 'read by every site: five rules next to the scanner rules');
+        same(count($s->blockedPaths), count(rulesFrom("include @devtools\n")->blockedPaths), 'include @devtools changes nothing');
         same(count($s->blockedPaths), count(rulesFrom("block @devtools\n")->blockedPaths), 'block @devtools = include @devtools');
         $shield = new Shield($s, new MemoryStore());
         foreach ($cases as $path => $id) {
@@ -481,11 +482,11 @@ return [
             $d = $shield->decide($r, 1000.0);
             same(['reject', 404, 'blocked path', $id], [$d->action, $d->status, $d->reason, $shield->explain($d, $r)], "$path: 404 by $id");
         }
-        foreach (['/package-tours', '/manifest.json', '/blog/dockerfile-tips', '/settings', '/docs/application.html', '/shop/telescope', '/horizon-2030',
+        foreach (['/package-tours', '/manifest.json', '/blog/dockerfile-tips', '/account/settings', '/docs/application.html', '/shop/telescope', '/horizon-2030',
             '/actuators-and-valves', '/api-documentation', '/docs/openapi.json', '/sitemap', '/maps/berlin.map.html', '/@alice', '/'] as $path) {
             same('allow', decideFor($s, $path), "a near miss passes: $path");
         }
-        same('DEV', array_key_last(array_filter($s->origins['versions'], static fn (string $v): bool => $v === '2026.11.1')), 'the set has a version');
+        same('DEV', array_key_last(array_filter($s->origins['versions'], static fn (string $v): bool => $v === '2026.11.2')), 'the set has a version');
         // A site with an API console takes that one rule back; a team opens the debug pages for its office.
         $api = rulesFrom("include @devtools\nunblock [DEV-APIDOCS@1]\n[SITE-DBG] unblock [DEV-DEBUG@1] at /_profiler/** /_wdt/** for 192.0.2.0/24\n");
         same('allow', decideFor($api, '/swagger-ui.html'), 'taken back');
@@ -496,8 +497,8 @@ return [
     'RSF02-02 the built-in rules: shipped as rule files, the same as the PHP defaults' => function (): void {
         $mirror = \CjwNetwork\RequestShield\Config::builtIns();
         $defaults = rulesFrom('');
-        same(\CjwNetwork\RequestShield\Config::scannerPaths(), $defaults->blockedPaths, 'rules/scanners.rules = Config::scannerPaths()');
-        $wp = rulesFrom("unblock @scanners\ninclude @wordpress\n");
+        same(array_merge(\CjwNetwork\RequestShield\Config::scannerPaths(), \CjwNetwork\RequestShield\Config::devtoolsPaths()), $defaults->blockedPaths, 'rules/scanners.rules and rules/devtools.rules = Config::scannerPaths() and devtoolsPaths()');
+        $wp = rulesFrom("unblock @scanners\nunblock @devtools\ninclude @wordpress\n");
         same(\CjwNetwork\RequestShield\Config::wordpressPaths(), $wp->blockedPaths, 'rules/wordpress.rules = Config::wordpressPaths()');
         foreach ([$defaults, $wp] as $s) {
             foreach ($s->blockedPaths as $p) {
@@ -506,9 +507,9 @@ return [
             }
         }
         same(\CjwNetwork\RequestShield\Settings::from([])->blockedPaths, $defaults->blockedPaths, 'PHP array settings get the same blocks');
-        same(count(\CjwNetwork\RequestShield\Config::scannerPaths()) + 2, count(rulesFrom("block @wordpress\n")->blockedPaths), 'block @wordpress = include @wordpress');
+        same(count(\CjwNetwork\RequestShield\Config::defaults()['blockedPaths']) + 2, count(rulesFrom("block @wordpress\n")->blockedPaths), 'block @wordpress = include @wordpress');
         same(count(rulesFrom("include @wordpress\nblock @wordpress\n")->blockedPaths), count(rulesFrom("include @wordpress\n")->blockedPaths), 'twice is once');
-        same(count(\CjwNetwork\RequestShield\Config::scannerPaths()) - 1, count(rulesFrom("unblock [SCAN-CGI]\n")->blockedPaths), 'one taken back by its ID');
+        same(count(\CjwNetwork\RequestShield\Config::defaults()['blockedPaths']) - 1, count(rulesFrom("unblock [SCAN-CGI]\n")->blockedPaths), 'one taken back by its ID');
         same('SCAN-BACKUP', \CjwNetwork\RequestShield\Config::setName(\CjwNetwork\RequestShield\Config::scannerPaths()[1]), 'PHP array settings: the ID too');
     },
     'RSF05-01 versions: one per file, named by its namespace; shown by check' => function (): void {
@@ -516,10 +517,10 @@ return [
         $dir = ruleDir(['site.rules' => "ids SITE\nversion 2026-09-29.2\ninclude ext/*.rules\n", 'ext/shop.rules' => "version 1.4.0\nblock /x\n"]);
         try {
             $s = Settings::from(RuleFile::read(["$dir/site.rules"])['config']);
-            same(['SCAN' => '2026.11.1', 'CRAWL' => '2026.10.1', 'ext/shop.rules' => '1.4.0', 'SITE' => '2026-09-29.2'], $s->origins['versions'], 'the built-ins, then in the order read; a file without namespace by its name');
+            same(['SCAN' => '2026.11.1', 'DEV' => '2026.11.2', 'CRAWL' => '2026.10.1', 'ext/shop.rules' => '1.4.0', 'SITE' => '2026-09-29.2'], $s->origins['versions'], 'the built-ins, then in the order read; a file without namespace by its name');
             $bin = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(rsCli());
             exec("$bin check " . escapeshellarg("$dir/site.rules") . ' 2>&1', $out, $code);
-            truthy(strpos(implode("\n", $out), 'rule sets SCAN 2026.11.1, CRAWL 2026.10.1, ext/shop.rules 1.4.0, SITE 2026-09-29.2') !== false, implode("\n", $out));
+            truthy(strpos(implode("\n", $out), 'rule sets SCAN 2026.11.1, DEV 2026.11.2, CRAWL 2026.10.1, ext/shop.rules 1.4.0, SITE 2026-09-29.2') !== false, implode("\n", $out));
             $html = \CjwNetwork\RequestShield\Waf\RulesPage::render($s, ['store' => new MemoryStore()]);
             truthy(strpos($html, '<code>SITE 2026-09-29.2</code>') !== false, 'on the rules page');
         } finally {

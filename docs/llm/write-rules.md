@@ -29,7 +29,7 @@ configuration and, if there is one, its access log. Then, finding by finding:
 | a search, an expensive page | `[SITE-SEARCH] limit searches 10/min at /search` -- the eleventh in a minute gets 429 | no |
 | paths only attackers ask for that the starter misses (an old installer) | `[SITE-OLD] block /install/**` -- hidden files, backups, database tools, CGI, project or key files (composer.json, id_rsa), copies of .env, stored keys and credential files (.env.production, .aws, credentials.json) are in the scanner rules already | no |
 | the site is **not** WordPress | `include @wordpress` (the starter has it, except for `--app=wordpress`) | no |
-| the site serves no build files, debug pages or API consoles through PHP (look for routes like `/_profiler`, `/swagger-ui`, `/api-docs`, `/openapi.json` first) | `include @devtools`; a route the site does have is taken back: `unblock [DEV-APIDOCS@1]` | no |
+| the site serves a build file, debug page or API console through PHP (look for routes like `/_profiler`, `/swagger-ui`, `/api-docs`, `/openapi.json`): `@devtools` is built in and refuses them | take that rule back: `unblock [DEV-APIDOCS@1]`, or open it for the office: `unblock [DEV-DEBUG@1] at /_profiler/** for 192.0.2.0/24` | no |
 
 A parameter with a fixed set of values, as a pattern (the line exactly as
 written here):

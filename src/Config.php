@@ -31,7 +31,7 @@ final class Config
             // The site's hosts; empty: any host.
             'hosts' => [],
             'limits' => ['uri' => 4096, 'queryParameters' => 64, 'headerBytes' => 16384],
-            'blockedPaths' => self::scannerPaths(),
+            'blockedPaths' => array_merge(self::scannerPaths(), self::devtoolsPaths()),
             // What may be cached. paths: regular expressions (null: every path);
             // query: parameter names (null: any, []: none); ignore: names no key holds,
             // taken out before a cache runs (0048); unknown: a parameter query does not
@@ -224,6 +224,26 @@ final class Config
     }
 
     /**
+     * Addresses of other software's tools (rules/devtools.rules, @devtools):
+     * build and settings files, debug and status pages, API consoles, a
+     * development server's own addresses. Read by every site, as the
+     * scanner paths are; a site that serves one through PHP takes that rule
+     * back (unblock [DEV-APIDOCS]) or opens it for some addresses.
+     *
+     * @return list<string>
+     */
+    public static function devtoolsPaths(): array
+    {
+        return [
+            '#/(?:package(?:-lock)?\\.json|yarn\\.lock|pnpm-lock\\.yaml|dockerfile|makefile|gemfile(?:\\.lock)?|requirements\\.txt|go\\.(?:mod|sum)|cargo\\.(?:toml|lock)|phpunit\\.xml(?:\\.dist)?|tsconfig\\.json|(?:webpack|vite|next|nuxt)\\.config\\.[cm]?[jt]s)$#',
+            '#/(?:php\\.ini|appsettings(?:\\.[a-z]+)?\\.json|application(?:-[a-z]+)?\\.(?:ya?ml|properties)|(?:database|parameters|settings\\.local)\\.ya?ml|(?:local_)?settings\\.py)$#',
+            '#^/(?:_profiler|_wdt|telescope|horizon|_ignition|_debugbar|debug/(?:vars|pprof|default)|actuator|jolokia|h2-console|server-status|server-info|elmah\\.axd|trace\\.axd|jmx-console|web-console|manager/html)(?:/|$)#',
+            '#^/(?:swagger(?:-ui)?(?:\\.html)?|swagger\\.(?:json|ya?ml)|openapi\\.(?:json|ya?ml)|(?:v[1-3]/)?api-docs|graphiql)(?:/|$)#',
+            '#\\.(?:js|css)\\.map$|^/@(?:fs|vite|id|react-refresh)(?:/|$)|^/(?:__vite[a-z_]*|__webpack_hmr|sockjs-node|webpack-dev-server)(?:/|$)#',
+        ];
+    }
+
+    /**
      * Paths of WordPress, for every site that is not one.
      *
      * @return list<string>
@@ -235,7 +255,7 @@ final class Config
 
     /**
      * The built-in blocks with their IDs and descriptions, for settings from a
-     * PHP array. The source is rules/scanners.rules and rules/wordpress.rules
+     * PHP array. The source is rules/scanners.rules, rules/devtools.rules and rules/wordpress.rules
      * (a rule file reads those); a test keeps this copy the same.
      *
      * @return array<string, array{0: string, 1: string}> pattern => [ID, description]
@@ -243,6 +263,7 @@ final class Config
     public static function builtIns(): array
     {
         $s = self::scannerPaths();
+        $d = self::devtoolsPaths();
         $w = self::wordpressPaths();
         return [
             $s[0] => ['SCAN-HIDDEN', 'hidden files and folders: .env, .git, .htpasswd, editor settings'],
@@ -253,6 +274,11 @@ final class Config
             $s[5] => ['SCAN-CONFIG', 'project and key files: composer.json, web.config, docker-compose.yml, .npmrc, id_rsa'],
             $s[6] => ['SCAN-SECRETS', 'copies of .env and stored keys: .env.production, .aws, .ssh, .docker, .kube, .git-credentials, .htaccess'],
             $s[7] => ['SCAN-KEYS', 'credential files and key stores: credentials.json, service-account.json, secrets.yml, private.key, .pem, .p12, .tfstate'],
+            $d[0] => ['DEV-BUILD', 'build files: package.json, yarn.lock, Dockerfile, Makefile, requirements.txt, phpunit.xml, webpack.config.js'],
+            $d[1] => ['DEV-APPCONFIG', "other software's settings files: php.ini, appsettings.json, application.yml, database.yml, parameters.yml, settings.py"],
+            $d[2] => ['DEV-DEBUG', "debug and status pages: Symfony's profiler, Laravel's Telescope and Horizon, Spring's actuator, server-status"],
+            $d[3] => ['DEV-APIDOCS', 'API consoles and descriptions: swagger-ui, swagger.json, openapi.json, api-docs, graphiql'],
+            $d[4] => ['DEV-SOURCE', "source maps and a development server's own addresses: main.js.map, /@fs/, /@vite/client, /__webpack_hmr"],
             $w[0] => ['WP-FOLDERS', 'WordPress folders: /wp-admin, /wp-includes, /wp-content'],
             $w[1] => ['WP-SCRIPTS', 'WordPress scripts: wp-login.php, xmlrpc.php, wp-config.php'],
         ];

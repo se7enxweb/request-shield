@@ -221,7 +221,7 @@ return [
             '/HNAP1' => 'ATK-EXPLOIT',                      // router exploit probe, case does not matter
             '/boaform/admin/formLogin' => 'ATK-EXPLOIT',
             '/GponForm/diag' => 'ATK-EXPLOIT',
-            '/_ignition/execute-solution' => 'ATK-EXPLOIT',   // Laravel Ignition (CVE-2021-3129)
+            '/_ignition/execute-solution' => 'DEV-DEBUG',     // Laravel Ignition (CVE-2021-3129): the built-in debug-page rule answers first
             '/.aws/credentials' => 'SCAN-SECRETS',            // stored keys: the scanner rule answers first, with or without @attacks
             '/.ssh/authorized_keys' => 'SCAN-SECRETS',
             '/.ssh/id_rsa' => 'SCAN-CONFIG',                // a key: the scanner rule answers first

@@ -137,19 +137,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   file out. With `include @attacks`, `/.aws/…` and `/.ssh/…` are refused by
   `SCAN-SECRETS` now instead of `ATK-EXPLOIT` (404 either way).
 - **A new shipped rule set, `@devtools`** (`rules/devtools.rules`,
-  `2026.11.1`, RSF02-02), on request: `include @devtools` (or `block
-  @devtools`). Other software's tools, answered 404 before the site starts
+  `2026.11.2`, RSF02-02), **built in**: read by every site, as
+  `@scanners` is. Other software's tools, answered 404 before the site starts
   -- build files (`DEV-BUILD`: `package.json`, `Dockerfile`, `Makefile`),
   settings files (`DEV-APPCONFIG`: `php.ini`, `application.yml`,
   `database.yml`), debug and status pages (`DEV-DEBUG`: `/_profiler`,
   `/telescope`, `/actuator`, `/server-status`), API consoles (`DEV-APIDOCS`:
   `/swagger-ui`, `/openapi.json`, `/api-docs`) and source maps with a
   development server's own addresses (`DEV-SOURCE`: `main.js.map`, `/@fs/`).
-  Not read by default, because some sites serve one of them through PHP (a
-  Symfony site in development, an API with its console); such a site takes
-  that rule back: `unblock [DEV-APIDOCS@1]`. From what scanners asked 38
-  websites for in 30 days. Nothing changes for a site that does not include
-  it.
+  **A site that serves one of them through PHP** (a Symfony site in
+  development with `/_profiler`, an API with its `/swagger-ui`, Laravel's
+  `/telescope` or `/horizon`) gets 404 there after the update: it takes
+  that rule back (`unblock [DEV-APIDOCS@1]`), opens it for the office
+  (`unblock [DEV-DEBUG@1] at /_profiler/** for 192.0.2.0/24`) or takes back
+  the whole set (`unblock @devtools`); `set mode monitor` shows it first.
+  `include @devtools` is allowed and changes nothing. Settings from a PHP
+  array get the same blocks (`Config::devtoolsPaths()`). With `include
+  @attacks`, `/_ignition/execute-solution` is refused by `DEV-DEBUG` now
+  instead of `ATK-EXPLOIT` (404 either way). From what scanners asked 38
+  websites for in 30 days.
 - **`examples/showcase/deploy.sh`: the showcase on a server in one
   command** -- from a clone of the repository, after `git pull`: builds
   the standalone copy, takes the running copy's `var/` over (secret,

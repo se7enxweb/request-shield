@@ -18,7 +18,7 @@
 # "monitor" in front.
 
 ids EXP
-version 2026-10-02.1
+version 2026-11-10.1
 
 # --------------------------------------------------------------------------
 # 0. The site
@@ -28,6 +28,10 @@ version 2026-10-02.1
 set         mode monitor                                       # first: log only. Then: enforce
 include     @tracking                                          # utm_*, gclid, fbclid … are known parameters
 include     @attacks                                           # attack patterns in the query and the headers (SQL, scripts, paths …)
+include     @devtools                                          # built in like the scanner paths, named so it is seen: build files, debug pages, API consoles, source maps
+expect GET /package.json                           404 by DEV-BUILD     # tells a scanner what the site is built with
+expect GET /_profiler/latest                       404 by DEV-DEBUG     # another framework's debug page
+expect GET /swagger-ui.html                        404 by DEV-APIDOCS   # an API console Exponential does not have
 
 # --------------------------------------------------------------------------
 # 1. System URLs in the frontend

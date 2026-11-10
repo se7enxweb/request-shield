@@ -2,12 +2,21 @@
 
 The rule files in this directory are read by every site (`scanners.rules`) or
 on request (`wordpress.rules`: `include @wordpress`; `attacks.rules`:
-`include @attacks`; `devtools.rules`: `include @devtools`). Each file has a
+`include @attacks`), and `devtools.rules` by every site too. Each file has a
 `version`; each rule a revision (`[SCAN-BACKUP@1]`), raised when the rule
 changes what it matches. A site that takes back, replaces or opens a rule and
 names the revision it reviewed (`unblock [SCAN-BACKUP@1] at /downloads/**`) is
 warned by `bin/request-shield check` and the active rules page when the
 revision here is newer — the rule itself applies at once.
+
+## 2026.11.2
+
+`devtools.rules` is read by every site now, as `scanners.rules` is (no rule
+changes what it matches, so no revision is raised). A site that serves one
+of its addresses through PHP takes that rule back (`unblock [DEV-APIDOCS@1]`)
+or the whole set (`unblock @devtools`). The near miss `/settings` is
+`/account/settings` now: on an Exponential site `/settings` is refused by its
+own rules.
 
 ## 2026.11.1
 
