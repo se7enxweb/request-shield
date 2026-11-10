@@ -122,6 +122,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   page and missing on it. They are the page's own now.
 
 ### Added
+- **Two new built-in scanner rules, `SCAN-SECRETS` and `SCAN-KEYS`**
+  (scanner rules `2026.11.1`, RSF02-02), from what scanners asked 38
+  websites for in 30 days. `SCAN-SECRETS`: the copies of `.env` a deploy
+  leaves behind (`.env.production`, `.env.local`, `.env_1` -- `SCAN-HIDDEN`
+  refused `.env` alone) and where tools keep their keys (`.aws`, `.ssh`,
+  `.docker`, `.kube`, `.git-credentials`, `.netrc` …), also `.htaccess` and
+  `.user.ini`. `SCAN-KEYS`: credential files by their name
+  (`credentials.json`, `service-account.json`, `secrets.yml`, `private.key`)
+  and key stores by their extension (`.pem`, `.p12`, `.jks`, `.tfstate`).
+  Answered 404 before the site starts; `/tools/.envoy`, `/tags/.net`, a
+  Keynote file (`/slides/quarter.key`) and `/credentials-guide` pass.
+  `unblock [SCAN-KEYS] at /downloads/**` opens one where a site hands such a
+  file out. With `include @attacks`, `/.aws/…` and `/.ssh/…` are refused by
+  `SCAN-SECRETS` now instead of `ATK-EXPLOIT` (404 either way).
+- **A new shipped rule set, `@devtools`** (`rules/devtools.rules`,
+  `2026.11.2`, RSF02-02), **built in**: read by every site, as
+  `@scanners` is. Other software's tools, answered 404 before the site starts
+  -- build files (`DEV-BUILD`: `package.json`, `Dockerfile`, `Makefile`),
+  settings files (`DEV-APPCONFIG`: `php.ini`, `application.yml`,
+  `database.yml`), debug and status pages (`DEV-DEBUG`: `/_profiler`,
+  `/telescope`, `/actuator`, `/server-status`), API consoles (`DEV-APIDOCS`:
+  `/swagger-ui`, `/openapi.json`, `/api-docs`) and source maps with a
+  development server's own addresses (`DEV-SOURCE`: `main.js.map`, `/@fs/`).
+  **A site that serves one of them through PHP** (a Symfony site in
+  development with `/_profiler`, an API with its `/swagger-ui`, Laravel's
+  `/telescope` or `/horizon`) gets 404 there after the update: it takes
+  that rule back (`unblock [DEV-APIDOCS@1]`), opens it for the office
+  (`unblock [DEV-DEBUG@1] at /_profiler/** for 192.0.2.0/24`) or takes back
+  the whole set (`unblock @devtools`); `set mode monitor` shows it first.
+  `include @devtools` is allowed and changes nothing. Settings from a PHP
+  array get the same blocks (`Config::devtoolsPaths()`). With `include
+  @attacks`, `/_ignition/execute-solution` is refused by `DEV-DEBUG` now
+  instead of `ATK-EXPLOIT` (404 either way). From what scanners asked 38
+  websites for in 30 days.
 - **`examples/showcase/deploy.sh`: the showcase on a server in one
   command** -- from a clone of the repository, after `git pull`: builds
   the standalone copy, takes the running copy's `var/` over (secret,

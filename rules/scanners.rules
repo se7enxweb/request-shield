@@ -8,7 +8,7 @@
 # them (what the rule refuses, and near misses it must let through).
 
 ids SCAN required
-version 2026.10.2
+version 2026.11.1
 
 [SCAN-HIDDEN@1] block regex /\.(git|svn|hg|bzr|env|htpasswd|ds_store|idea|vscode)(/|$)                 # hidden files and folders: .env, .git, .htpasswd, editor settings
 expect GET /.env                      404
@@ -36,3 +36,25 @@ expect GET /composer.json            404
 expect GET /vendor/x/composer.lock   404
 expect GET /id_rsa                    404
 expect GET /composer-guide           answered   # a near miss
+[SCAN-SECRETS@1] block regex /\.(?:env[._-][a-z0-9._-]+$|(?:htaccess|user\.ini|aws|azure|gcloud|ssh|docker|dockerenv|kube|netrc|pgpass|my\.cnf|s3cfg|boto|pypirc|vault-token|terraform|bash_history|gitconfig|git-credentials|envrc|cursor|claude)(?:/|$))   # copies of .env and stored keys: .env.production, .aws, .ssh, .docker, .kube, .git-credentials, .htaccess
+expect GET /.env.production           404   # the copies a deploy leaves behind: .env.local, .env-prod, .env_1
+expect GET /api/.env.local            404
+expect GET /.aws/credentials          404   # the keys of cloud and container tools
+expect GET /.docker/config.json       404
+expect GET /.git-credentials          404
+expect GET /.htaccess                 404
+expect GET /tools/.envoy             answered   # a near miss: a name that only starts like .env
+expect GET /tags/.net                answered   # a near miss: a tag that starts with a dot
+expect GET /.dockerignore            answered   # a near miss: .docker, then more
+expect GET /blog/aws-pricing         answered   # a near miss: no dot
+[SCAN-KEYS@1]   block regex /(?:c(?:redentials?|lient[-_]secrets?)\.(?:json|ya?ml|env|pem|key|txt|ini|conf|cfg|properties|toml|xml)|s(?:ecrets?\.(?:json|ya?ml|env|pem|key|txt|ini|conf|cfg|properties|toml|xml)|ervice[-_]?account[a-z0-9_-]*\.(?:json|ya?ml|env|pem|key|txt|ini|conf|cfg|properties|toml|xml)|erver\.key)|aws[-_]?(?:credentials|keys?)\.(?:json|ya?ml|env|pem|key|txt|ini|conf|cfg|properties|toml|xml)|priv(?:ate(?:[-_]?key\.(?:json|ya?ml|env|pem|key|txt|ini|conf|cfg|properties|toml|xml)|\.key)|key\.(?:json|ya?ml|env|pem|key|txt|ini|conf|cfg|properties|toml|xml)))$|\.(?:pem|p12|pfx|jks|keystore|ppk|kdbx|tfvars|tfstate(?:\.backup)?)$   # credential files and key stores: credentials.json, service-account.json, secrets.yml, private.key, .pem, .p12, .tfstate
+expect GET /credentials.json          404
+expect GET /config/service-account.json  404
+expect GET /secrets.yml               404
+expect GET /private.key               404
+expect GET /certs/server.pem          404
+expect GET /terraform.tfstate         404
+expect GET /credentials-guide        answered   # a near miss: no file extension
+expect GET /blog/secrets.html        answered   # a near miss: a page
+expect GET /slides/quarter.key       answered   # a near miss: a Keynote file is a .key too
+expect GET /downloads/root-ca.crt    answered   # a near miss: a certificate to hand out

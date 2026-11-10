@@ -2,12 +2,44 @@
 
 The rule files in this directory are read by every site (`scanners.rules`) or
 on request (`wordpress.rules`: `include @wordpress`; `attacks.rules`:
-`include @attacks`). Each file has a
+`include @attacks`), and `devtools.rules` by every site too. Each file has a
 `version`; each rule a revision (`[SCAN-BACKUP@1]`), raised when the rule
 changes what it matches. A site that takes back, replaces or opens a rule and
 names the revision it reviewed (`unblock [SCAN-BACKUP@1] at /downloads/**`) is
 warned by `bin/request-shield check` and the active rules page when the
 revision here is newer — the rule itself applies at once.
+
+## 2026.11.2
+
+`devtools.rules` is read by every site now, as `scanners.rules` is (no rule
+changes what it matches, so no revision is raised). A site that serves one
+of its addresses through PHP takes that rule back (`unblock [DEV-APIDOCS@1]`)
+or the whole set (`unblock @devtools`). The near miss `/settings` is
+`/account/settings` now: on an Exponential site `/settings` is refused by its
+own rules.
+
+## 2026.11.1
+
+`scanners.rules` (built in):
+
+| Rule | Revision | Matches |
+|---|---|---|
+| `SCAN-SECRETS` | 1 (new) | copies of `.env` -- a name after it: `.env.production`, `.env.local`, `.env-prod`, `.env_1`, in any folder (`SCAN-HIDDEN` has `.env` itself; `.env.bak` was `SCAN-BACKUP`'s already) -- and where tools keep their keys: `.aws`, `.azure`, `.gcloud`, `.ssh`, `.docker`, `.dockerenv`, `.kube`, `.terraform`, `.netrc`, `.pgpass`, `.my.cnf`, `.s3cfg`, `.boto`, `.pypirc`, `.vault-token`, `.git-credentials`, `.gitconfig`, `.envrc`, `.bash_history`, `.cursor`, `.claude`, and the server's `.htaccess` and `.user.ini`, as a file or a folder. `/tools/.envoy`, `/tags/.net`, `/.dockerignore` and `/blog/aws-pricing` pass. With `include @attacks`, `/.aws/…` and `/.ssh/…` were `ATK-EXPLOIT`'s; this rule answers first now, with or without that set. |
+| `SCAN-KEYS` | 1 (new) | credential files by their name -- `credentials`, `secrets`, `service-account…`, `client_secret`, `aws-credentials`, `aws-keys`, `private-key`, `privkey` with `.json`, `.yml`, `.yaml`, `.env`, `.pem`, `.key`, `.txt`, `.ini`, `.conf`, `.cfg`, `.properties`, `.toml` or `.xml`; `private.key`, `server.key` -- and key stores by their extension: `.pem`, `.p12`, `.pfx`, `.jks`, `.keystore`, `.ppk`, `.kdbx`, `.tfvars`, `.tfstate`, `.tfstate.backup`; in any folder. `/credentials-guide`, `/blog/secrets.html`, a Keynote file (`/slides/quarter.key`) and a certificate (`/downloads/root-ca.crt`) pass. |
+
+Both from what scanners asked 38 websites for in 30 days: every name in
+them was asked for, none is an address of a page.
+
+`devtools.rules` (`include @devtools`), a new set, from the same 30 days --
+for sites that serve none of these through PHP:
+
+| Rule | Revision | Matches |
+|---|---|---|
+| `DEV-BUILD` | 1 (new) | build files in any folder: `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `Dockerfile`, `Makefile`, `Gemfile`, `Gemfile.lock`, `requirements.txt`, `go.mod`, `go.sum`, `Cargo.toml`, `Cargo.lock`, `phpunit.xml`, `phpunit.xml.dist`, `tsconfig.json`, `webpack.config.js` (also `vite`, `next`, `nuxt`; `.js`, `.cjs`, `.mjs`, `.ts`). `/manifest.json`, `/package-tours` and `/blog/dockerfile-tips` pass. |
+| `DEV-APPCONFIG` | 1 (new) | other software's settings files in any folder: `php.ini`, `appsettings.json` (also `appsettings.Production.json`), `application.yml`, `application.properties` (also `application-prod.yml`), `database.yml`, `parameters.yml`, `settings.local.yml`, `settings.py`, `local_settings.py`. `/settings` and `/docs/application.html` pass. |
+| `DEV-DEBUG` | 1 (new) | debug and status pages, at the root only: `/_profiler`, `/_wdt`, `/telescope`, `/horizon`, `/_ignition`, `/_debugbar`, `/debug/vars`, `/debug/pprof`, `/debug/default`, `/actuator`, `/jolokia`, `/h2-console`, `/server-status`, `/server-info`, `/elmah.axd`, `/trace.axd`, `/jmx-console`, `/web-console`, `/manager/html`, and what is below them. `/shop/telescope`, `/horizon-2030` and `/actuators-and-valves` pass. (`/_ignition/execute-solution` is `ATK-EXPLOIT`'s too.) |
+| `DEV-APIDOCS` | 1 (new) | API consoles and descriptions, at the root only: `/swagger`, `/swagger-ui`, `/swagger-ui.html`, `/swagger.json`, `/swagger.yaml`, `/openapi.json`, `/openapi.yaml`, `/api-docs`, `/v1/api-docs` to `/v3/api-docs`, `/graphiql`. `/api-documentation` and `/docs/openapi.json` pass. |
+| `DEV-SOURCE` | 1 (new) | source maps (`.js.map`, `.css.map`) and a development server's own addresses: `/@fs/…`, `/@vite/…`, `/@id/…`, `/@react-refresh`, `/__vite_ping`, `/__webpack_hmr`, `/sockjs-node`, `/webpack-dev-server`. `/sitemap`, `/maps/berlin.map.html` and `/@alice` pass. |
 
 ## 2026.10.2
 
