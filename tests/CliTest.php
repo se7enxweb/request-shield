@@ -19,10 +19,15 @@ return [
         } else {
             truthy(Shield::BUILD !== 'source' && Shield::BUILD !== '', 'the built file names its build: ' . Shield::BUILD);
         }
-        // Ahead of the last release in the changelog: the next version, not an old one.
+        // Between releases (-dev): ahead of the last release in the changelog, the next version, not an old one.
+        // A release itself: that last release -- the commit that is tagged (build/release-check.php).
         $log = (string) file_get_contents(dirname(__DIR__) . '/CHANGELOG.md');
         truthy(preg_match('/^## \[(\d+\.\d+\.\d+)\]/m', $log, $m) === 1, 'the changelog names the last release');
-        truthy(version_compare((string) strtok(Shield::VERSION, '-'), $m[1], '>'), 'VERSION ' . Shield::VERSION . ' is ahead of the last release ' . $m[1]);
+        if (substr(Shield::VERSION, -4) === '-dev') {
+            truthy(version_compare((string) strtok(Shield::VERSION, '-'), $m[1], '>'), 'VERSION ' . Shield::VERSION . ' is ahead of the last release ' . $m[1]);
+        } else {
+            same($m[1], Shield::VERSION, 'a release: the changelog\'s last section is its own');
+        }
     },
     'RSF05-02 request-shield version: what is installed, without a rule file' => function (): void {
         foreach (['version', '--version'] as $word) {
