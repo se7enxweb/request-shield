@@ -56,7 +56,7 @@ final class Shield
      * BUILD is "source" in the repository; the single-file build (proposal
      * 0002) writes the tag and commit into it.
      */
-    public const VERSION = '0.4.0-dev';
+    public const VERSION = '0.5.0-dev';
     public const BUILD = 'source';
 
     /** @var list<Rule> */
@@ -89,6 +89,13 @@ final class Shield
     /** Forms larger than this are not carried through the check (the visitor sends them again). */
     private const RESEND_MAX_BYTES = 262144;
 
+    /**
+     * How many refusals a page's own requests take for one ban: an unasked
+     * refusal (unasked()) is counted on its own counter, against ten times
+     * the ban's number.
+     */
+    public const UNASKED_REFUSALS = 10;
+
     /** What decide() found without the budgets: whether the answer may be cached. */
     private Decision $base;
 
@@ -120,7 +127,7 @@ final class Shield
             $this->rules[] = new DenyRule($s->denyTable);
         }
         if (isset($s->feedTables['deny']) || self::hasAt($s, 'deny')) {
-            $this->rules[] = new FeedRule(\Closure::fromCallable([$this, 'feedHit']));
+            $this->rules[] = new FeedRule($this);       // it calls feedHit(); no closure of it (FeedRule, JitTest)
         }
         if ($s->bans !== [] && $s->mode !== 'monitor') {
             if ($s->banKeep === 'file' && $this->store instanceof ApcuStore) {
@@ -798,13 +805,52 @@ final class Shield
             if ($d->spent) {
                 $this->signal('limits', $request, $now);
             }
-        } elseif ($d->action === Decision::REJECT && ($d->reason === 'blocked path' || $d->reason === 'attack')) {
-            $this->signal('refusals', $request, $now);
+        } elseif ($d->action === Decision::REJECT && ($d->reason === 'blocked path' || $d->reason === 'attack')
+            && !self::wellKnown($d, $request)) {
+            $this->signal('refusals', $request, $now, self::unasked($request));
         }
     }
 
-    /** One signal: counted for every ban that names it; past its number, the ban (or, watched, a line in the log). */
-    private function signal(string $name, Request $request, float $now): void
+    /**
+     * A refusal the browser says its visitor did not ask for: a page asked
+     * for it by itself -- an image, a script, a fetch() (Sec-Fetch-Mode other
+     * than "navigate") -- or another website sent the visitor (Sec-Fetch-Site:
+     * cross-site). Refused all the same, and counted, but on a counter of its
+     * own against UNASKED_REFUSALS times the ban's number: a foreign page with
+     * twenty <img src="https://this.site/.env">, or an old link elsewhere to
+     * an address refused today, bans nobody; a scanner that forges these
+     * headers to dodge the ban is banned all the same, only later.
+     */
+    private static function unasked(Request $request): bool
+    {
+        $mode = $request->header('Sec-Fetch-Mode');
+        if ($mode !== null && strcasecmp(trim($mode), 'navigate') !== 0) {
+            return true;
+        }
+        $site = $request->header('Sec-Fetch-Site');
+        return $site !== null && strcasecmp(trim($site), 'cross-site') === 0;
+    }
+
+    /**
+     * A blocked path below /.well-known/ (RFC 8615): browsers, phones,
+     * prefetch proxies and password managers ask there unprompted
+     * (traffic-advice, apple-app-site-association, assetlinks.json,
+     * passkey-endpoints ...), one proxy address for many people and many
+     * websites. Refused, never counted. Only a blocked path: an attack
+     * pattern sent there counts like anywhere else. (A path with "/../"
+     * never gets this far: PathSanityRule refuses it.)
+     */
+    private static function wellKnown(Decision $d, Request $request): bool
+    {
+        return $d->reason === 'blocked path' && strncasecmp($request->matchPath(), '/.well-known/', 13) === 0;
+    }
+
+    /**
+     * One signal: counted for every ban that names it; past its number, the
+     * ban (or, watched, a line in the log). $unasked: a refusal a page asked
+     * for by itself (unasked()), on its own counter.
+     */
+    private function signal(string $name, Request $request, float $now, bool $unasked = false): void
     {
         $s = $this->settings;
         $enforced = $s->mode === 'monitor' ? [] : $s->bans;
@@ -819,7 +865,7 @@ final class Shield
         foreach ([[$enforced, false], [$watched, true]] as [$bans, $watch]) {
             foreach ($bans as $b) {
                 if ($b['signal'] === $name) {
-                    $this->countBan($b, $request, $now, $watch);
+                    $this->countBan($b, $request, $now, $watch, $unasked);
                 }
             }
         }
@@ -829,10 +875,11 @@ final class Shield
      * A signal for one ban: past its number in its window, the client is
      * banned -- longer each time within a day (ban-growth), at most ban-max.
      * Never an address let in (exempt), a trusted proxy or a verified crawler.
+     * $unasked: on a counter of its own, past UNASKED_REFUSALS times the number.
      *
      * @param array{after: int, signal: string, in: int, for: int, rule: string} $b
      */
-    private function countBan(array $b, Request $request, float $now, bool $watch): void
+    private function countBan(array $b, Request $request, float $now, bool $watch, bool $unasked = false): void
     {
         $s = $this->settings;
         $ip = $request->clientIp;
@@ -847,9 +894,9 @@ final class Shield
         }
         $count = 0.0;
         for ($i = 0; $i < $weight; $i++) {
-            $count = $this->store->hit(($watch ? 'monitor:' : '') . 'ban:' . $b['rule'] . ':' . $bucket, $b['in'], $now);
+            $count = $this->store->hit(($watch ? 'monitor:' : '') . 'ban:' . $b['rule'] . ':' . ($unasked ? 'unasked:' : '') . $bucket, $b['in'], $now);
         }
-        if ($count < $b['after']) {
+        if ($count < $b['after'] * ($unasked ? self::UNASKED_REFUSALS : 1)) {
             return;
         }
         $id = $s->crawlers === [] ? null : $this->crawlers()->claims((string) $request->header('user-agent'));

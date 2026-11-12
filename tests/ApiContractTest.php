@@ -54,7 +54,7 @@ function contractCheck(mixed $value, array $schema, string $at = 'data'): array
     }
     if (is_array($v) && $is($value, 'array') && is_array($schema['items'] ?? null)) {
         foreach ($v as $i => $item) {
-            $out = array_merge($out, contractCheck($item, $schema['items'], "$at[$i]"));
+            $out = array_merge($out, contractCheck($item, $schema['items'], "{$at}[$i]"));
         }
     }
     return $out;

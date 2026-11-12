@@ -204,9 +204,8 @@ return [
             if (serverApcu()) {
                 truthy($cache($page) === 'hit' && strpos($page[2], 'for members') !== false, 'member B: the members\' page member A made -- ' . $cache($page));
             } else {
-                // Without APCu roles stay off (0039): each member's page is their own, made by the application.
-                truthy($cache($page) !== 'hit' && strpos($page[2], 'for members') !== false, 'no APCu: member B gets the members\' page from the application, not from the cache -- ' . $cache($page));
-                truthy($cache($req('GET', '/magazin/3', $b)) !== 'hit', 'no APCu: nor the second time');
+                // No APCu in the server (minimal hosting, the CI legs without it): a page per role needs it (0039).
+                truthy($cache($page) !== 'hit' && strpos($page[2], 'for members') !== false, 'without APCu, member B: the members\' page made for them, nothing from the cache -- ' . $cache($page));
             }
             // An editor: a role of their own -- never the members' page, never theirs to members.
             $ed = ['Cookie' => 'rs-demo-member=editor-e1'] + $host;

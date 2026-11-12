@@ -195,6 +195,14 @@ return [
         same([], $run['without'], 'built-in rules are never listed as without');
     },
 
+    'RSF05-04 the built-in rule files: the examples of @devtools pass, each rule has some' => function (): void {
+        $run = examplesOf("include @devtools\n");
+        $dev = array_values(array_filter($run['results'], static fn (array $r): bool => strncmp($r['example']['at'], 'built-in devtools.rules', 23) === 0));
+        truthy(count($dev) >= 30, 'the set\'s examples: ' . count($dev));
+        same([], array_values(array_map(static fn (array $r): string => $r['example']['at'] . ': ' . $r['why'], array_filter($dev, static fn (array $r): bool => $r['status'] !== 'pass'))), 'all pass');
+        same([], $run['without'], 'no rule of the set without an example');
+    },
+
     'RSF05-04 request-shield test: the output, exit 0, 1 and 2, --junit' => function (): void {
         $dir = ruleDir(['ok.rules' => "set store-dir /nonexistent\n[S-A] block /a   # old\nexpect GET /a 404\nexpect GET /ab answered   # a near miss\n",
             'bad.rules' => "set store-dir /nonexistent\n[S-A] block /a\nexpect GET /a passes   # wrong on purpose\n",

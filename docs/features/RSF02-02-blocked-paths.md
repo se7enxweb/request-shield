@@ -9,20 +9,30 @@ Some addresses are asked for only by scanners: `/.env`, `/.git/config`,
 "not found" (404) before the site runs -- the scanner learns nothing, the site
 spends nothing, and the log names the rule.
 
-Every site has the shipped set `@scanners` (`rules/scanners.rules`), read
-before its own rules. A site that is **not** WordPress adds `include
-@wordpress`: WordPress's folders and scripts are the most scanned paths there
-are. Both are rule files like a site's own -- with IDs, descriptions,
-revisions and examples (`expect`) that `request-shield test` checks.
+Every site has the shipped sets `@scanners` (`rules/scanners.rules`) and
+`@devtools` (`rules/devtools.rules`), read before its own rules. A site that
+is **not** WordPress adds `include @wordpress`: WordPress's folders and
+scripts are the most scanned paths there are. All three are rule files like a site's
+own -- with IDs, descriptions, revisions and examples (`expect`) that
+`request-shield test` checks.
 
 ## Use cases
 
-- **Every site:** hidden files, backups, test scripts, database tools and
-  project or key files (composer.json, id_rsa) are never part of a public
-  site; scanners try them all day.
+- **Every site:** hidden files, backups, test scripts, database tools,
+  project or key files (composer.json, id_rsa), copies of `.env`, stored
+  keys and credential files (.env.production, .aws, credentials.json) are
+  never part of a public site; scanners try them all day.
 - **A site that is not WordPress:** `include @wordpress` turns away the
   requests for `/wp-login.php` and `/wp-admin/` that make up a large share of
   all attack traffic.
+- **Every site, too: other software's tools.** `@devtools` turns away the
+  requests for `/package.json`, `/actuator/env`, `/_profiler`,
+  `/server-status`, `/swagger-ui.html` and `main.js.map` -- what a scanner
+  asks for to learn what a site runs on. A site that serves one of them
+  through PHP -- a Symfony site in development has `/_profiler`, an API its
+  `/swagger-ui` -- takes that one rule back (`unblock [DEV-APIDOCS@1]`),
+  opens it for some addresses, or takes back the whole set (`unblock
+  @devtools`).
 - **A path of the site's own that only attackers ask for:** an old installer,
   a forgotten admin tool -- `block /install/**`.
 
@@ -30,6 +40,7 @@ revisions and examples (`expect`) that `request-shield test` checks.
 
 ```text
 include @wordpress                                 # this is not WordPress
+unblock [DEV-APIDOCS@1]                            # this site shows its API's description (@devtools is built in)
 [SITE-OLD] block /install/** /phpmyadmin/**        # paths of your own
 
 replace [SCAN-BACKUP@1] block *.sql *.bak          # one rule written differently, its ID kept
@@ -58,8 +69,15 @@ The shipped rules:
 | `SCAN-DBTOOL` | `@scanners` | database and test tools: phpMyAdmin, Adminer, PHPUnit |
 | `SCAN-CGI` | `@scanners` | cgi-bin, and .well-known except certificates, security.txt and password change |
 | `SCAN-CONFIG` | `@scanners` | project and key files: composer.json, composer.lock, web.config, docker-compose.yml, .npmrc, id_rsa (also id_dsa, id_ecdsa, id_ed25519 and their .pub) -- a scanner asks for them to learn what the site runs on; the web server sends a file that exists without PHP, so the rule spares the site's front controller the ones that do not |
+| `SCAN-SECRETS` | `@scanners` | copies of .env and stored keys: .env.production, .env.local, .env_1 (a name after `.env`), the folders and files where cloud, container and other tools keep their keys (.aws, .azure, .gcloud, .ssh, .docker, .kube, .terraform, .netrc, .pgpass, .my.cnf, .s3cfg, .boto, .pypirc, .vault-token, .git-credentials, .gitconfig, .envrc, .bash_history, .cursor, .claude), and the server's own .htaccess and .user.ini -- `SCAN-HIDDEN` has `.env` itself; `/tools/.envoy`, `/tags/.net` and `/.dockerignore` pass |
+| `SCAN-KEYS` | `@scanners` | credential files and key stores: credentials, secrets, service-account, client_secret, aws-credentials, private-key as .json, .yml, .env, .pem, .key, .txt, .ini … (credentials.json, config/serviceAccountKey.json, secrets.yml); private.key, server.key; and by their extension .pem, .p12, .pfx, .jks, .keystore, .ppk, .kdbx, .tfvars, .tfstate -- a Keynote file (`/slides/quarter.key`), a certificate to hand out (`/downloads/root-ca.crt`) and `/credentials-guide` pass; a site that hands out a `.pem` through PHP opens it with `unblock [SCAN-KEYS@1] at /downloads/**` |
 | `WP-FOLDERS` | `@wordpress` | WordPress folders: /wp-admin, /wp-includes, /wp-content |
 | `WP-SCRIPTS` | `@wordpress` | WordPress scripts: wp-login.php, xmlrpc.php, wp-config.php |
+| `DEV-BUILD` | `@devtools` | build files: package.json, package-lock.json, yarn.lock, pnpm-lock.yaml, Dockerfile, Makefile, Gemfile, requirements.txt, go.mod, Cargo.toml, phpunit.xml, tsconfig.json, webpack.config.js (also vite, next, nuxt) -- `/manifest.json` and `/package-tours` pass |
+| `DEV-APPCONFIG` | `@devtools` | other software's settings files: php.ini, appsettings.json, application.yml, application.properties, database.yml, parameters.yml, settings.local.yml, settings.py |
+| `DEV-DEBUG` | `@devtools` | debug and status pages at the root: Symfony's profiler (/_profiler, /_wdt), Laravel's Telescope, Horizon, Ignition and debug bar, Spring's actuator, Jolokia, the H2 console, /debug/pprof, server-status, server-info, elmah.axd, the JBoss and Tomcat consoles -- `/shop/telescope` and `/horizon-2030` pass |
+| `DEV-APIDOCS` | `@devtools` | API consoles and descriptions at the root: swagger-ui, swagger.json, openapi.json, api-docs (also /v2/api-docs), graphiql -- `/docs/openapi.json` passes |
+| `DEV-SOURCE` | `@devtools` | source maps (main.js.map, style.css.map) and a development server's own addresses: /@fs/, /@vite/, /__vite_ping, /__webpack_hmr, /sockjs-node |
 
 ## Cost
 

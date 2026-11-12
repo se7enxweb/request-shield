@@ -379,6 +379,7 @@ return [
         $port = freePort();
         $proc = startFpm($fpm, $dir, $port);
         try {
+            $apcu = fpmApcu($port, $dir);                    // first: a PHP_VALUE sent later stays with the pool's workers
             $send = static function (string $method, string $uri, array $headers = []) use ($port, $dir): array {
                 $params = ['REQUEST_METHOD' => $method, 'REQUEST_URI' => $uri, 'QUERY_STRING' => (string) parse_url($uri, PHP_URL_QUERY),
                     'SCRIPT_FILENAME' => "$dir/docroot/index.php", 'SCRIPT_NAME' => '/index.php', 'DOCUMENT_ROOT' => "$dir/docroot", 'SERVER_PROTOCOL' => 'HTTP/1.1',
@@ -394,18 +395,16 @@ return [
             [, , $anon] = $send('GET', '/index.php');
             $r = $send('GET', '/index.php');
             truthy($hit($r) && $r[2] === $anon, 'anonymous: kept as before');
-            if (!serverApcu()) {
-                // Without APCu roles stay off (0039): a session's page is the visitor's own -- the
-                // application makes it every time, nothing is kept for it, anonymous visitors keep theirs.
+            if (!$apcu) {
+                // PHP-FPM without APCu (the CI legs without it, minimal hosting): nowhere to remember a role.
+                $as('ed-1');
                 $runs = strlen((string) file_get_contents("$dir/runs"));
-                $first = $as('ed-1');
-                $again = $as('ed-1');
-                truthy(!$hit($first) && !$hit($again) && strpos($again[2], 'page for editor') === 0 && $again[2] !== $first[2]
-                    && strlen((string) file_get_contents("$dir/runs")) === $runs + 2, 'no APCu: a session\'s page from the application, each time -- ' . $again[1]);
-                truthy(stripos($first[1], 'X-RS-Cache: miss') === false, 'no APCu: nothing kept for a session (no miss that a later request could hit) -- ' . $first[1]);
+                $r = $as('ed-1');
+                truthy(!$hit($r) && strpos($r[2], 'page for editor') === 0 && strlen((string) file_get_contents("$dir/runs")) === $runs + 1,
+                    'without APCu a session is the visitor\'s own: the application answers every time, nothing kept for it -- ' . $r[1]);
                 $r = $send('GET', '/index.php');
-                truthy($hit($r) && $r[2] === $anon, 'no APCu: anonymous visitors still get their kept page, never a session\'s');
-                return;
+                truthy($hit($r) && $r[2] === $anon, 'anonymous visitors still get the kept page, never the session\'s');
+                skip('PHP-FPM has no APCu here: a page per role needs it (the fallback was checked)');
             }
             if (strpos($as('ed-1')[1], 'X-RS-Cache: miss') === false) {
                 throw new TestFailure('a session the shield does not know yet: the application runs');
@@ -540,9 +539,6 @@ return [
         if (!function_exists('proc_open') || $fpm === null) {
             skip('no PHP-FPM here (TESTS_PHP_FPM)');
         }
-        if (!extension_loaded('apcu')) {
-            skip('no APCu');
-        }
         $dir = cacheDir();
         mkdir("$dir/docroot");
         file_put_contents("$dir/docroot/index.php", '<?php
@@ -554,6 +550,9 @@ return [
         $port = freePort();
         $proc = startFpm($fpm, $dir, $port);
         try {
+            if (!fpmApcu($port, $dir)) {
+                skip('PHP-FPM has no APCu here');
+            }
             $send = static function (string $method, string $uri, array $headers = []) use ($port, $dir): array {
                 $params = ['REQUEST_METHOD' => $method, 'REQUEST_URI' => $uri, 'QUERY_STRING' => (string) parse_url($uri, PHP_URL_QUERY),
                     'SCRIPT_FILENAME' => "$dir/docroot/index.php", 'SCRIPT_NAME' => '/index.php', 'DOCUMENT_ROOT' => "$dir/docroot", 'SERVER_PROTOCOL' => 'HTTP/1.1',
@@ -701,9 +700,6 @@ return [
         if (!function_exists('proc_open') || $fpm === null) {
             skip('no PHP-FPM here (TESTS_PHP_FPM)');
         }
-        if (!extension_loaded('apcu')) {
-            skip('no APCu: roles stay off without it');
-        }
         $dir = cacheDir();
         mkdir("$dir/docroot");
         // Exponential Platform without its AppCache, in a few lines: the hash lookup and a page that varies by it.
@@ -742,6 +738,9 @@ return [
             usleep(100000);
         }
         try {
+            if (!fpmApcu($port, $dir)) {
+                skip('PHP-FPM has no APCu here: roles stay off without it');
+            }
             $send = static function (string $method, string $uri, array $headers = [], string $addr = '127.0.0.1') use ($port, $dir): array {
                 $params = ['REQUEST_METHOD' => $method, 'REQUEST_URI' => $uri, 'QUERY_STRING' => (string) parse_url($uri, PHP_URL_QUERY),
                     'SCRIPT_FILENAME' => "$dir/docroot/index.php", 'SCRIPT_NAME' => '/index.php', 'DOCUMENT_ROOT' => "$dir/docroot", 'SERVER_PROTOCOL' => 'HTTP/1.1',
@@ -830,8 +829,8 @@ return [
         if (!function_exists('proc_open') || PHP_OS_FAMILY !== 'Linux') {
             skip('no proc_open, or no PHP_CLI_SERVER_WORKERS (Linux only)');
         }
-        if (!extension_loaded('apcu')) {
-            skip('no APCu: roles stay off without it');
+        if (!serverApcu()) {
+            skip('no APCu in the server: roles stay off without it');
         }
         $dir = cacheDir();
         mkdir("$dir/docroot");

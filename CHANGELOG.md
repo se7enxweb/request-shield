@@ -6,6 +6,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-11-10
+
+The firewall grew from a rule file into a small WAF with plugins: known
+query parameters and `query strict`/`query drop`; modes (monitor first,
+strict under attack, `monitor` per rule); known crawlers, AI crawlers
+included, verified by their published address lists or DNS; IP lists,
+temporary bans and public blocklists as feeds (Spamhaus DROP, DShield,
+blocklist.de, Tor exits, cloud ranges), exported for a firewall; rules per
+website (`site` blocks); new attack and scanner rules (`SCAN-SECRETS`,
+`SCAN-KEYS`, `SCAN-CONFIG`, `@devtools`, SSTI, SSRF, PHP objects, SQL);
+error pages of the site's own. Plugins, each its own edition of the single
+file and its own Composer package: the statistics, the dashboard's
+firewall pages (live view, lists, rules & setup), an HTTP API with its
+contract, and an HTTP cache that keeps one page per role and speaks the
+CMSes' tags and purges. One file to deploy (`build/single-file.php`, the
+release's `request-shield.php`), `init`, `verify`, `self-update`,
+`advise`, a demo and a showcase. PHP 8.0 to 8.5.
+
+### Upgrading from 0.3.0
+
+- **Header and cookie names are shorter**, the old ones are not read any
+  more: `X-RS` (was `X-Request-Shield`), `X-RS-Monitor`, the site asks for
+  the check with `X-RS-Check: 1` (was `X-Request-Shield-Challenge:
+  required`); cookies `rsp`, `rss`, `rsd` (were `rs_pass`, `rs_solution`,
+  `rs_stats`) -- a visitor with an old pass is checked once more.
+- **Where the shield keeps its files:** a relative `store-dir` or
+  `lists-dir` is the rule file's directory now, not PHP's working
+  directory; without `store-dir` the store is `.request-shield/store` next
+  to the settings file, not the system's temp dir. The secret, bans, lists
+  and statistics start afresh in the new place -- write the old path out to
+  keep them. New files are `0600` in `0700` folders (`set file-mode 0640`,
+  `set dir-mode 0750` for a log reader in PHP's group).
+- **More is refused by default:** `@devtools` (build files, debug pages,
+  API consoles, source maps) and the new scanner rules `SCAN-SECRETS`,
+  `SCAN-KEYS`, `SCAN-CONFIG` answer 404 on every site; a site that serves
+  one of those paths through PHP takes the rule back (`unblock
+  [DEV-APIDOCS@1]`, or the whole set: `unblock @devtools`). Run
+  `request-shield test` on the site's rules first.
+- **Bans count differently:** a refusal the client did not ask for (a
+  page's own request, or one sent by another website) counts against ten
+  times the `ban after <n> refusals`; `/.well-known/` never counts.
+- **A background request gets the check as JSON**, not the check page
+  (`Sec-Fetch-Dest: empty`, `X-Requested-With: XMLHttpRequest`).
+- **The dashboard's addresses moved:** `<dashboard-path>/stats/…` for the
+  statistics, `<dashboard-path>/waf/…` for live, lists and rules; the old
+  `/rs/dashboard`, `/rs/live`, `/rs/lists`, `/rs/rules`, … are gone.
+- **For code using the classes:** the statistics' and the firewall pages'
+  classes moved to `plugins/stats` and `plugins/waf`, the statistics'
+  settings to `ext.stats`; see *Changed* below.
+- The release files are not signed yet: `request-shield verify` checks a
+  download against `SHA256SUMS`; GitHub's build attestation
+  (`gh attestation verify`) says where it was built.
+
 ### Changed
 - **A relative `store-dir` or `lists-dir` is the rule file's directory**
   (RSF05-02), as `log` already was -- before, it depended on the directory
@@ -36,6 +89,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   50 -> 36 µs; short values are matched as before (one call).
 
 ### Fixed
+- **PHP 8.0 with OPcache's JIT no longer crashes on a site with feeds**
+  (RSF01-03). With `opcache.jit=1235` (the function JIT on hot code, as
+  setup-php and many hosts switch it on) PHP 8.0 crashed with a segfault
+  once the shield had decided a few hundred requests: the deny feeds' rule
+  called the shield's lookup through `\Closure::fromCallable()`, and PHP
+  8.0's JIT mishandles calls through that kind of closure. Seen in CI every
+  few runs, always in FeedsTest. `FeedRule` now holds the shield and calls
+  `feedHit()` itself -- no closure, and one call less per request. PHP 8.1
+  and later were not affected. A new test (`JitTest`) runs the shield
+  under that JIT; on PHP 8.0 it crashed on the old code on 8 runs of 8.
+- **A refusal the client did not ask for no longer bans it so soon**
+  (RSF01-02). `ban after <n> refusals` counted every refused request,
+  whoever caused it. A foreign page with twenty
+  `<img src="https://www.example.org/.env">` banned each of its visitors
+  here, for all websites of the installation; an old link elsewhere to an
+  address refused today counted against whoever followed it. Such a request
+  -- a page's own (`Sec-Fetch-Mode` other than `navigate`), or a visitor
+  sent by another website (`Sec-Fetch-Site: cross-site`) -- is refused as
+  before and counted on a counter of its own, against ten times the number:
+  a scanner forging the headers is banned all the same, only later. A
+  blocked path below `/.well-known/`, where prefetch proxies, phones and
+  password managers ask unprompted (`traffic-advice`,
+  `apple-app-site-association`, `assetlinks.json`), one proxy address for
+  many people, is not counted at all (an attack pattern sent there counts
+  like anywhere else). Typed in, followed within the site or sent without
+  these headers, a refusal counts as before. Looked at for a refused
+  request only: nothing on the passing path.
 - **A background request never gets the check page** (RSF03-02): a request
   a page's script sends with `fetch()` or `XMLHttpRequest`
   (`Sec-Fetch-Dest: empty`, `X-Requested-With: XMLHttpRequest`) is answered
@@ -50,6 +130,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   examples (version 2026-10-17.1) name the admin's mega menu with `api-path`
   (`EXP-ADMIN-BG`, `EXP-AH-BG`), and `docs/use-cases/exponential.md` says
   how the admin's background requests are answered.
+- **A line was lost when its folder had been removed while PHP still
+  remembered it** (RSF05-02): `Files::append()` asked `is_dir()` whether a
+  failed write's folder was gone, and PHP's stat cache answered from before
+  logrotate or a clean-up removed it -- nothing was made anew, the log line or
+  the statistics' count was dropped without a word (seen on PHP 8.1). The
+  folder is asked of the disk now, with and without threads.
+- **A wrong path pattern in the PHP settings was named by one letter of its
+  key** (`'a' must be a path pattern` instead of `'backend[1]'`; past the
+  key's length a warning and an empty name): `backend`, `queryDrop` and
+  `postOrigin.except` name the entry by its place again.
 - **An address range with a prefix longer than its address** (`1.2.3.4/99`,
   `2001:db8::/129`) is refused naming its line; before it was taken and
   matched nobody.
@@ -112,6 +202,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   page and missing on it. They are the page's own now.
 
 ### Added
+- **Two new built-in scanner rules, `SCAN-SECRETS` and `SCAN-KEYS`**
+  (scanner rules `2026.11.1`, RSF02-02), from what scanners asked 38
+  websites for in 30 days. `SCAN-SECRETS`: the copies of `.env` a deploy
+  leaves behind (`.env.production`, `.env.local`, `.env_1` -- `SCAN-HIDDEN`
+  refused `.env` alone) and where tools keep their keys (`.aws`, `.ssh`,
+  `.docker`, `.kube`, `.git-credentials`, `.netrc` …), also `.htaccess` and
+  `.user.ini`. `SCAN-KEYS`: credential files by their name
+  (`credentials.json`, `service-account.json`, `secrets.yml`, `private.key`)
+  and key stores by their extension (`.pem`, `.p12`, `.jks`, `.tfstate`).
+  Answered 404 before the site starts; `/tools/.envoy`, `/tags/.net`, a
+  Keynote file (`/slides/quarter.key`) and `/credentials-guide` pass.
+  `unblock [SCAN-KEYS] at /downloads/**` opens one where a site hands such a
+  file out. With `include @attacks`, `/.aws/…` and `/.ssh/…` are refused by
+  `SCAN-SECRETS` now instead of `ATK-EXPLOIT` (404 either way).
+- **A new shipped rule set, `@devtools`** (`rules/devtools.rules`,
+  `2026.11.2`, RSF02-02), **built in**: read by every site, as
+  `@scanners` is. Other software's tools, answered 404 before the site starts
+  -- build files (`DEV-BUILD`: `package.json`, `Dockerfile`, `Makefile`),
+  settings files (`DEV-APPCONFIG`: `php.ini`, `application.yml`,
+  `database.yml`), debug and status pages (`DEV-DEBUG`: `/_profiler`,
+  `/telescope`, `/actuator`, `/server-status`), API consoles (`DEV-APIDOCS`:
+  `/swagger-ui`, `/openapi.json`, `/api-docs`) and source maps with a
+  development server's own addresses (`DEV-SOURCE`: `main.js.map`, `/@fs/`).
+  **A site that serves one of them through PHP** (a Symfony site in
+  development with `/_profiler`, an API with its `/swagger-ui`, Laravel's
+  `/telescope` or `/horizon`) gets 404 there after the update: it takes
+  that rule back (`unblock [DEV-APIDOCS@1]`), opens it for the office
+  (`unblock [DEV-DEBUG@1] at /_profiler/** for 192.0.2.0/24`) or takes back
+  the whole set (`unblock @devtools`); `set mode monitor` shows it first.
+  `include @devtools` is allowed and changes nothing. Settings from a PHP
+  array get the same blocks (`Config::devtoolsPaths()`). With `include
+  @attacks`, `/_ignition/execute-solution` is refused by `DEV-DEBUG` now
+  instead of `ATK-EXPLOIT` (404 either way). From what scanners asked 38
+  websites for in 30 days.
 - **`examples/showcase/deploy.sh`: the showcase on a server in one
   command** -- from a clone of the repository, after `git pull`: builds
   the standalone copy, takes the running copy's `var/` over (secret,
@@ -1756,7 +1880,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `Shield::consume()`, APCu, file and memory stores, `bootstrap.php` for
   `auto_prepend_file`.
 
-[Unreleased]: https://github.com/cjw-network/request-shield/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/cjw-network/request-shield/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/cjw-network/request-shield/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/cjw-network/request-shield/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/cjw-network/request-shield/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/cjw-network/request-shield/releases/tag/v0.1.0

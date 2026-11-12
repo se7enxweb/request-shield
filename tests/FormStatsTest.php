@@ -140,5 +140,16 @@ return [
         rulesFail(['site.rules' => "backend regex (\n"], 'site.rules:1', 'not a valid regular expression');
         same([], Settings::from([])->backend, 'none by default');
         same(['#^/admin/#'], Settings::from(['backend' => ['#^/admin/#']])->backend, 'PHP settings');
+        foreach ([1, 12] as $i) {                                      // 12: past the end of "backend"
+            $list = array_fill(0, $i, '#^/admin/#');
+            $list[] = '(';
+            try {
+                Settings::from(['backend' => $list]);
+                $msg = 'taken';
+            } catch (InvalidArgumentException $e) {
+                $msg = $e->getMessage();
+            }
+            same("request-shield: 'backend[$i]' must be a path pattern (stats-skip **/osm-proxy/** in a rule file)", $msg, "PHP settings: the wrong pattern named by its place ($i)");
+        }
     },
 ];
