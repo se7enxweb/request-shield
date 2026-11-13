@@ -134,6 +134,19 @@ return [
             truthy(strpos($text, "warning: the dashboard's pages are open to everyone (") !== false && strpos($text, 'restrict /rs/** to') !== false && substr_count($text, 'open to everyone') === 1, 'check warns once, naming the fix: ' . $text);
         });
     },
+    'RSF06-01 mode monitor: the restrict rule refuses nobody, but the shield\'s own pages still hold it' => function (): void {
+        if (!function_exists('proc_open')) {
+            skip('no proc_open');
+        }
+        withDashboard("set mode monitor\nset dashboard-path /rs\ntrust 127.0.0.1\n[T-ADMIN] restrict /rs/** to 192.0.2.0/24\n", function (callable $get): void {
+            $r = $get('/rs/waf/live', 'GET', ['X-Forwarded-For' => '203.0.113.9']);
+            same(403, $r['status'], 'another address: refused by the page, although the rule only watched');
+            truthy(strpos($r['body'], 'only for certain addresses') !== false, 'and says why: ' . $r['body']);
+            same(403, $get('/rs/rs-test/ping', 'GET', ['X-Forwarded-For' => '203.0.113.9'])['status'], 'an extension\'s page too');
+            $r = $get('/rs/rs-test/ping', 'GET', ['X-Forwarded-For' => '192.0.2.7']);
+            same(200, $r['status'], 'the office: through, and the page');
+        });
+    },
     'RSF06-01 a route from an address the restrict rule keeps out is refused by the rule, before any page' => function (): void {
         if (!function_exists('proc_open')) {
             skip('no proc_open');

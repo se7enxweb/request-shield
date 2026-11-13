@@ -365,7 +365,9 @@ set dashboard-session 8h                                      # how long a login
   own (10 a minute per address, then 429), each logged without the token.
   Every page: `X-Robots-Tag: noindex`, `Cache-Control: private, no-store`,
   `Referrer-Policy: same-origin`, `frame-ancestors 'self'`. A site's
-  `restrict /rs/** to …` still applies first.
+  `restrict /rs/** to …` still applies first -- in every mode: under
+  `set mode monitor` the rule only logs other addresses, the shield's own
+  pages still refuse them.
 - **The form in the site's look:** a plugin with the `Pages` capability draws
   the login form (`access-login`), the shield keeps the headers and the cookie
   ([plugins](RSF06-04-plugins.md#capabilities-what-a-plugin-can-do-for-the-pages)).

@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- The dashboard's pages hold their `restrict` rule in mode `monitor` too: the rule only logs there, and every address reached the pages.
+
 ## [0.4.0] — 2026-11-10
 
 The firewall grew from a rule file into a small WAF with plugins: known

@@ -100,6 +100,16 @@ final class Dashboard
         $own = Access::headers($s);
         $api = $route['key'] === 'api';
         $cors = $api ? self::cors($s, $request) : [];
+        // The shield's own page holds its restrict rule in every mode. Enforced, the rule has refused
+        // other addresses before this; in mode monitor it only logs them, and reaching the page would
+        // otherwise count as having passed it.
+        if ($admin && (new Rule\RestrictedPathRule($s->restricted))->check($request, microtime(true)) !== null) {
+            if ($api) {
+                return self::problem(403, 'Forbidden', 'This address may not use the API (restrict).', [...$own, ...$cors]);
+            }
+            return Response::html(403, self::plain($request, $lang, 'This page is only for certain addresses.',
+                'Diese Seite ist nur für bestimmte Adressen.'), $own);
+        }
         if ($api && $request->method === 'OPTIONS') {
             // A browser's preflight carries no token: the API's page answers it (api-origins), before any login.
             $page = $route['page'] ?? null;
