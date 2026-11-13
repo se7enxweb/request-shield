@@ -20,6 +20,11 @@ fatal error in `auto_prepend_file`: every visitor gets a 500. `AGENTS.md` says
   compiled settings the shield runs as `mode off` and logs.
 - A truncated compiled file is deleted and rebuilt on the next request.
 - `request-shield check` stays strict: the CLI is where errors are seen.
+- A long-running server (one PHP process for many requests) cannot let a
+  script call `exit()` and throws an exception of its own instead. Named with
+  `Shield::passThrough()`, such exceptions pass `protect()`, `requirePass()`
+  and `consume()` unchanged: they end a request the shield answered, they are
+  no shield error (2026-11-12).
 
 ## Consequences
 

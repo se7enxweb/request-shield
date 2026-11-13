@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `Shield::passThrough()`: the exception a long-running server throws in place of `exit()` passes `protect()`, `requirePass()` and `consume()` -- before, the fail-safe catch took it for a shield error and the refused request reached the application.
+
 ## [0.4.0] — 2026-11-10
 
 The firewall grew from a rule file into a small WAF with plugins: known

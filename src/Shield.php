@@ -80,6 +80,9 @@ final class Shield
 
     private static ?self $active = null;
 
+    /** @var list<class-string<\Throwable>> see passThrough() */
+    private static array $passThrough = [];
+
     /** The request protect() decided about. */
     private ?Request $request = null;
 
@@ -527,11 +530,43 @@ final class Shield
         // Fail safe (ADR 0007): whatever breaks inside the shield, the request
         // reaches the application -- uncached -- and PHP's error log hears it
         // once a minute. exit() is not a Throwable: the shield's own answers
-        // (a refusal, the check page) are not affected.
+        // (a refusal, the check page) are not affected -- nor, through
+        // passThrough(), a long-running server's exception in place of exit().
         try {
             return self::run($config, $known);
         } catch (\Throwable $e) {
+            self::passOn($e);
             return self::failedOpen($e, $config instanceof Settings ? $config : null);
+        }
+    }
+
+    /**
+     * Exceptions that end a request rather than report a failure. A
+     * long-running server (one PHP process answering many requests) cannot
+     * let a script call exit(); it turns exit() into an exception of its own.
+     * The fail-safe catch (ADR 0007) would take that for a shield error and
+     * let the refused request through. Named here, protect(), requirePass()
+     * and consume() let them through instead, so the shield's own answers (a
+     * refusal, the check page) end the request there too.
+     *
+     *   Shield::passThrough(\My\Server\ExitSignal::class);
+     *
+     * A class matches itself and its subclasses; each call replaces the list.
+     *
+     * @param class-string<\Throwable> ...$classes
+     */
+    public static function passThrough(string ...$classes): void
+    {
+        self::$passThrough = array_values($classes);
+    }
+
+    /** Throws $e on when passThrough() names its class: the request ends, it is no shield error. */
+    private static function passOn(\Throwable $e): void
+    {
+        foreach (self::$passThrough as $class) {
+            if ($e instanceof $class) {
+                throw $e;
+            }
         }
     }
 
@@ -1408,6 +1443,7 @@ final class Shield
         try {
             $this->requirePassNow($fresh);
         } catch (\Throwable $e) {
+            self::passOn($e);
             self::failed('requirePass', 'requirePass() failed and let the request through: ' . $e->getMessage());
         }
     }
@@ -1592,6 +1628,7 @@ final class Shield
         try {
             return $this->consumeNow($budget, $request, $now, $answer);
         } catch (\Throwable $e) {
+            self::passOn($e);
             self::failed('consume', "consume($budget) failed and let the request through: " . $e->getMessage());
             return Decision::allowUncached('shield error');
         }

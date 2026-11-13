@@ -74,6 +74,46 @@ return [
             @unlink((string) $log);
         }
     },
+    'RSF05-05 passThrough(): a long-running server\'s exception in place of exit() passes protect() -- no shield error, nothing logged; any other still fails open' => function (): void {
+        $server = $_SERVER;
+        $_SERVER = ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/page', 'HTTP_HOST' => 'example.org', 'REMOTE_ADDR' => '198.51.100.7', 'SERVER_PROTOCOL' => 'HTTP/1.1'] + $_SERVER;
+        unset($_SERVER['REQUEST_SHIELD']);
+        $log = tempnam(sys_get_temp_dir(), 'rs-log-');
+        $errorLog = ini_set('error_log', (string) $log);
+        $signal = new class ('exit') extends RuntimeException {
+        };
+        $child = new class ('exit') extends LogicException {
+        };
+        try {
+            Shield::passThrough(get_class($signal), LogicException::class);
+            foreach (['the class named' => $signal, 'a subclass of one named' => $child] as $what => $thrown) {
+                $caught = null;
+                try {
+                    Shield::protect(['store' => 'memory'], static function () use ($thrown): ?bool {
+                        throw $thrown;
+                    });
+                } catch (\Throwable $e) {
+                    $caught = $e;
+                }
+                same($thrown, $caught, "$what reaches the server unchanged");
+            }
+            same('', (string) file_get_contents((string) $log), 'and the error log hears nothing: it is no failure');
+            $d = Shield::protect(['store' => 'memory'], static function (): ?bool {
+                throw new RuntimeException('the adapter\'s index is broken');
+            });
+            same('shield error', $d->reason, 'an exception not named still fails open');
+            Shield::passThrough();
+            $d = Shield::protect(['store' => 'memory'], static function () use ($signal): ?bool {
+                throw $signal;
+            });
+            same('shield error', $d->reason, 'an empty list: as before, every exception fails open');
+        } finally {
+            Shield::passThrough();
+            $_SERVER = $server;
+            ini_set('error_log', (string) $errorLog);
+            @unlink((string) $log);
+        }
+    },
     'RSF05-05 a plugin\'s rule that throws (RuleProvider, 0031 C.3): through the public API the request passes as if the rule said nothing -- not as a shield error -- and the error log hears it once' => function (): void {
         $server = $_SERVER;
         $_SERVER = ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/forbidden', 'HTTP_HOST' => 'example.org', 'REMOTE_ADDR' => '198.51.100.7', 'SERVER_PROTOCOL' => 'HTTP/1.1'] + $_SERVER;

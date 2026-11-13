@@ -86,3 +86,19 @@ More: [plugins](../features/RSF06-04-plugins.md) ·
 [examples next to the rules](../features/RSF05-04-rule-examples.md) ·
 [what a cache may keep](../features/RSF04-01-cacheable-definition.md) ·
 [the rule file reference](../reference/rule-files.md).
+
+## A long-running server
+
+A server that keeps one PHP process for many requests cannot let a script call
+`exit()`; it turns `exit()` into an exception of its own. The shield answers a
+refused request and calls `exit()`, so name that exception once, before the
+first request:
+
+```php
+CjwNetwork\RequestShield\Shield::passThrough(My\Server\ExitSignal::class);
+```
+
+`protect()`, `protectFile()`, `requirePass()` and `consume()` then let it
+through to the server. Without it, the fail-safe catch
+([ADR 0007](../adr/0007-fail-safe-pass-through.md)) takes it for a shield error
+and the refused request reaches the application.
