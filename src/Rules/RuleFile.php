@@ -1224,6 +1224,15 @@ final class RuleFile
                 $this->put($key, $keep);
             }
         }
+        // A ban carries its rule's ID itself (ban()).
+        $bans = (array) $this->get('bans');
+        $keep = array_values(array_filter($bans, static fn ($b): bool => !is_array($b) || ($b['rule'] ?? null) !== $id));
+        if (count($keep) !== count($bans)) {
+            $found = true;
+            if (!$probe) {
+                $this->put('bans', $keep);
+            }
+        }
         foreach ($this->origins['budgets'] ?? [] as $name => $origin) {
             if ($origin === $id) {
                 $found = true;

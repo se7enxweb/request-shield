@@ -592,6 +592,18 @@ return [
         } finally {
             exec('rm -rf ' . escapeshellarg($dir));
         }
+        // A ban replaced: the new one only -- also where the old one was only watched (monitor ban).
+        $dir = ruleDir(['site.rules' => "ids SITE\n[SITE-BAN] ban after 10 refusals in 10m for 1h\nreplace [SITE-BAN] ban after 20 refusals in 10m for 2h\n"
+            . "[SITE-WBAN] monitor ban after 5 limits in 1m for 1h\nreplace [SITE-WBAN] ban after 8 limits in 1m for 1h\n"]);
+        try {
+            $s = Settings::load("$dir/site.rules", "$dir/cache");
+            $mine = static fn (array $bans): array => array_values(array_map(static fn (array $b): string => "{$b['rule']} {$b['after']} {$b['signal']}",
+                array_filter($bans, static fn (array $b): bool => str_starts_with($b['rule'], 'SITE-'))));
+            same(['SITE-BAN 20 refusals', 'SITE-WBAN 8 limits'], $mine($s->bans), 'a ban replaced, not added; the watched one replaced by an enforced one');
+            same(['SITE-BAN 20 refusals', 'SITE-WBAN 8 limits'], $mine($s->monitor?->bans ?? $s->bans), 'and the watched rules no longer hold the old thresholds');
+        } finally {
+            exec('rm -rf ' . escapeshellarg($dir));
+        }
         rulesFail(['site.rules' => "replace [SITE-NOPE] block /x\n"], 'site.rules:1', 'no earlier rule has the ID [SITE-NOPE]');
         rulesFail(['site.rules' => "replace block /x\n"], 'site.rules:1', 'replace [<ID>] <rule>');
         rulesFail(['site.rules' => "[X-1] replace [SCAN-CGI] block /x\n"], 'site.rules:1', 'the ID follows replace');

@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `replace [ID] ban …` takes the replaced ban back: the old ban stayed next to the new one -- for a `monitor ban`, watched at its old threshold under the same ID.
+
 ## [0.4.0] — 2026-11-10
 
 The firewall grew from a rule file into a small WAF with plugins: known
