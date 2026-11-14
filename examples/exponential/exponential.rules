@@ -18,7 +18,7 @@
 # "monitor" in front.
 
 ids EXP
-version 2026-11-10.1
+version 2026-11-14.1
 
 # --------------------------------------------------------------------------
 # 0. The site
@@ -164,12 +164,25 @@ expect GET /news/(offset)/20                       passes
 # --------------------------------------------------------------------------
 # 4. Pace and bans
 # --------------------------------------------------------------------------
-# One page view is one request through PHP (images, CSS and JS come from the
-# web server). 120 pages a minute is no person: the check; past 300 the check
+# One page view is one request through PHP (CSS and JS come from the web
+# server). 120 pages a minute is no person: the check; past 300 the check
 # again, and the counter starts anew when it is solved.
-[EXP-PACE]      limit requests 300/min challenge-at 120 on-exceeded challenge     # per visitor: the check past 120 pages a minute
+# Images are not page views. Exponential 6.0.15 makes image aliases on demand:
+# a page with hundreds of new images asks content/image (or index_image.php,
+# for a storage file that is not there yet) once per image, all at once. So
+# the default budget is replaced by a pace over everything but those
+# addresses (same numbers), and the images have a budget of their own, sized
+# for a page of a few thousand new images.
+no-limit    requests                                           # the default budget counts every request; the pace below leaves the images out
+[EXP-PACE]      limit pages 300/min challenge-at 120 on-exceeded challenge at regex ^(?!(/[a-z0-9_]+)?/content/image/|/index_image\.php|/var/([^/]+/)?storage/images(-versioned)?/)   # per visitor: the check past 120 pages a minute, images left out
 expect GET /news  times 120                        answered
-expect GET /news  times 121                        check
+expect GET /news  times 121                        check by EXP-PACE
+[EXP-IMAGES]    limit images 3000/min on-exceeded challenge at regex ^((/[a-z0-9_]+)?/content/image/|/index_image\.php|/var/([^/]+/)?storage/images(-versioned)?/)   # image aliases made on demand: 3000 a minute per visitor
+expect GET /content/image/abc/x.jpg  times 600     answered   # a page of 600 new images
+expect GET /eng/content/image/abc/x.jpg  times 600  answered  # behind a URI siteaccess
+expect GET /var/site/storage/images/a/b/1-1-eng-GB/x_large.jpg  times 600   answered   # a storage file not made yet
+expect GET /index_image.php  times 600             answered
+expect GET /content/image/abc/x.jpg  times 3001    check by EXP-IMAGES   # past 3000 a minute: the check
 # Ten refusals in ten minutes (system URLs, admin modules, internal files,
 # made-up view parameters …) is a scanner: an hour off the site. Watched first.
 [EXP-BAN]       monitor ban after 10 refusals in 10m for 1h                       # a scanner: 10 refusals in 10 minutes, an hour off (watched first)

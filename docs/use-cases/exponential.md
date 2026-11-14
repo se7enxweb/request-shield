@@ -166,7 +166,8 @@ request is answered so without any change. Copy the `EXP-ADMIN-BG` line (or
 
 | Rule | What | Why |
 |---|---|---|
-| `EXP-PACE` | past 120 pages a minute per visitor the check; past 300 the check again, then the counter starts anew | Images, CSS and JavaScript come from the web server, so one page view is one request through PHP. 120 pages a minute is no person. |
+| `EXP-PACE` | past 120 pages a minute per visitor the check; past 300 the check again, then the counter starts anew (images left out; the default budget `requests` is switched off) | CSS and JavaScript come from the web server, so one page view is one request through PHP. 120 pages a minute is no person. |
+| `EXP-IMAGES` | `content/image`, `index_image.php` and the storage images: past 3000 a minute per visitor the check | Exponential 6.0.15 makes image aliases on demand: a page with hundreds of new images asks for each of them through PHP, all at once. Those requests are not page views; counted as pages, a page of 500 new images got a few hundred answers 429. |
 | `EXP-BAN` (watched first) | 10 refusals in 10 minutes → an hour off the site | System URLs, admin modules, internal files, made-up view parameters: who collects ten refusals is scanning. Verified search engines are never banned. A visitor who follows an old link to `content/view` from another website is refused and counted against ten times the number (the browser says where the visitor comes from). Watched first all the same. |
 | `EXP-STRICT` (watched first) | any other query parameter → 404 | The frontend takes hardly any parameters: the search and the marketing tags (`@tracking`). Everything else is an attack tool's or a cache filler's. The log shows first what it would refuse. |
 | `@attacks` | SQL injection, scripts, paths … in the query and the headers → 403 | The reviewed attack patterns. They are the largest part of the cost (below); without `include @attacks`, about 11 µs less per request. |
