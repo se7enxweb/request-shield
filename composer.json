@@ -30,6 +30,9 @@
     "require": {
         "php": ">=8.0"
     },
+    "replace": {
+        "cjw-network/request-shield": "self.version"
+    },
     "suggest": {
         "ext-apcu": "Counters in shared memory (the file store is used without it)"
     },

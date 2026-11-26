@@ -184,7 +184,12 @@ return [
             unset($core['require-dev'], $core['scripts']);
             $core['autoload']['psr-4'] = ['CjwNetwork\\RequestShield\\' => 'src/'];
             file_put_contents("$tmp/core/composer.json", json_encode($core, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-            $versions = ['cjw-network/request-shield' => '1.0.0'];
+            // The core's own name (a fork renames it and replaces cjw-network/request-shield, which the plugins require).
+            $coreName = (string) $core['name'];
+            $versions = [$coreName => '1.0.0'];
+            // Composer finds a package that replaces another only when it is required itself: under another name the
+            // core is required next to the plugin, as a project using the renamed core does.
+            $coreRequire = $coreName === 'cjw-network/request-shield' ? [] : [$coreName => '^1.0'];
             foreach (rsPackages() as [$name]) {
                 $versions[$name] = '1.0.0';
             }
@@ -201,14 +206,14 @@ return [
                 }
                 $project = "$tmp/p-$ns";
                 mkdir($project);
-                file_put_contents("$project/composer.json", json_encode(['repositories' => $repos, 'require' => [$name => '^1.0']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                file_put_contents("$project/composer.json", json_encode(['repositories' => $repos, 'require' => $coreRequire + [$name => '^1.0']], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
                 $out = [];
                 exec('COMPOSER_HOME=' . escapeshellarg("$tmp/home") . ' ' . escapeshellarg($composer) . ' install --no-dev --no-interaction --no-progress --no-plugins -d ' . escapeshellarg($project) . ' 2>&1', $out, $code);
                 same(0, $code, "$name installs: " . implode("\n", array_slice($out, -15)));
                 $installed = json_decode((string) file_get_contents("$project/vendor/composer/installed.json"), true);
                 $got = array_map(static fn (array $p): string => (string) $p['name'], (array) ($installed['packages'] ?? []));
                 sort($got);
-                $want = array_merge(['cjw-network/request-shield', $name], array_map(static fn (string $n): string => rsPackages()['plugins/' . strtolower($n)][0], $expect[$ns]));
+                $want = array_merge([$coreName, $name], array_map(static fn (string $n): string => rsPackages()['plugins/' . strtolower($n)][0], $expect[$ns]));
                 sort($want);
                 same($want, $got, "$name brings exactly what it requires");
                 // Every class of the plugin loads (its interfaces and parents from the core and what it requires); its words are known.
