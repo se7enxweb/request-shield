@@ -5,7 +5,7 @@ Instructions for AI coding agents working on this repository. Humans: see
 
 ## What this is
 
-`cjw-network/request-shield`: a dependency-free PHP (≥ 8.0) library that runs
+`se7enxweb/request-shield` (7x distribution of cjw-network/request-shield): a dependency-free PHP (≥ 8.0) library that runs
 before the application (`auto_prepend_file` or the first line of a front
 controller) and decides whether a request reaches it and may be cached.
 Entry points: `src/Shield.php` (`protect()`, `protectFile()`), `bootstrap.php`.

@@ -4,6 +4,10 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.0.0.1] - 2026-11-25 (7x distribution)
+
+- Renamed: the Composer package is now `se7enxweb/request-shield`, the 7x distribution of request-shield for public use through Packagist. The code is unchanged from the upstream history this fork follows; the MIT license and the original authors stay.
+
 ## [Unreleased]
 
 ## [0.4.0] — 2026-11-10

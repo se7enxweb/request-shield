@@ -1,5 +1,5 @@
 {
-    "name": "cjw-network/request-shield",
+    "name": "se7enxweb/request-shield",
     "description": "A mini web application firewall for PHP: it checks every request before your site's code runs, turns away junk and floods, keeps page caches clean and makes bots pay — even on shared hosting.",
     "type": "library",
     "license": "MIT",
