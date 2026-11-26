@@ -201,13 +201,14 @@ final class IpTable
             $rows = $table[$family] ?? '';
             $w = self::WIDTH[$family];
             $half = ($w - 8) >> 1;
+            /** @var list<array{0: string, 1: string}> $runs */
             $runs = [];
             for ($i = 0, $n = intdiv(strlen($rows), $w); $i < $n; $i++) {
                 $first = (string) hex2bin(substr($rows, $i * $w, $half));
                 $last = (string) hex2bin(substr($rows, $i * $w + $half, $half));
                 $k = count($runs) - 1;
                 if ($k >= 0 && self::next($runs[$k][1]) === $first) {
-                    $runs[$k][1] = $last;                       // adjacent: one run
+                    $runs[$k] = [$runs[$k][0], $last];          // adjacent: one run
                 } else {
                     $runs[] = [$first, $last];
                 }
